@@ -1,8 +1,6 @@
 #ifndef SEALANG_H
 #define SEALANG_H
 
-#include "Python.h"
-
 #include "clang/AST/OperationKinds.h"
 #include "clang-c/Index.h"
 #include "clang-c/CXString.h"

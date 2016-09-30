@@ -9,5 +9,16 @@ add_library (sealang SHARED
 	${SOURCE_FILES}
 )
 
-# target_link_libraries (sealang
-# )
+set(LIBS
+  clangAST
+  clangBasic
+  clangFrontend
+  clangIndex
+  clangLex
+  clangSema
+  clangTooling
+)
+
+target_link_libraries (sealang
+	${LIBS}
+)

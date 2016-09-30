@@ -30,6 +30,8 @@ set(LLVM_INCLUDE_UTILS OFF CACHE BOOL
 add_subdirectory ("llvm")
 
 # sealang
-include_directories ("llvm/include")
-include_directories ("llvm/tools/clang/include")
-add_subdirectory ("sealang")
+include_directories("llvm/include")
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/llvm/include")
+include_directories("llvm/tools/clang/include")
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/llvm/tools/clang/include")
+add_subdirectory("sealang")
