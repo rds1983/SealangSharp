@@ -1,11 +1,12 @@
-# Base
-set (SOURCE_FILES
+add_definitions(-D_SEALANG_LIB_)
+
+set(SOURCE_FILES
     sealang.cpp
 
 	sealang.h
 )
 
-add_library (sealang SHARED
+add_library(sealang SHARED
 	${SOURCE_FILES}
 )
 
@@ -19,6 +20,6 @@ set(LIBS
   clangTooling
 )
 
-target_link_libraries (sealang
+target_link_libraries(sealang
 	${LIBS}
 )

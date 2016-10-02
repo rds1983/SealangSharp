@@ -68,7 +68,7 @@ namespace clang {
  * all potentially candidates for inclusion upstream in libclang.
  ************************************************************************/
 
-CXString clang_Cursor_getOperatorString(CXCursor cursor)
+CXString sealang_Cursor_getOperatorString(CXCursor cursor)
 {
     if (cursor.kind == CXCursor_BinaryOperator) {
         clang::BinaryOperator *op = (clang::BinaryOperator *) clang::getCursorExpr(cursor);
@@ -88,7 +88,7 @@ CXString clang_Cursor_getOperatorString(CXCursor cursor)
     return clang::cxstring::createEmpty();
 }
 
-clang::BinaryOperatorKind clang_Cursor_getBinaryOpcode(CXCursor cursor)
+clang::BinaryOperatorKind sealang_Cursor_getBinaryOpcode(CXCursor cursor)
 {
     if (cursor.kind == CXCursor_BinaryOperator) {
         clang::BinaryOperator *op = (clang::BinaryOperator *) clang::getCursorExpr(cursor);
@@ -103,7 +103,7 @@ clang::BinaryOperatorKind clang_Cursor_getBinaryOpcode(CXCursor cursor)
     return (clang::BinaryOperatorKind) 99999;
 }
 
-clang::UnaryOperatorKind clang_Cursor_getUnaryOpcode(CXCursor cursor)
+clang::UnaryOperatorKind sealang_Cursor_getUnaryOpcode(CXCursor cursor)
 {
     if (cursor.kind == CXCursor_UnaryOperator) {
         clang::UnaryOperator *op = (clang::UnaryOperator*) clang::getCursorExpr(cursor);
@@ -113,7 +113,7 @@ clang::UnaryOperatorKind clang_Cursor_getUnaryOpcode(CXCursor cursor)
     return (clang::UnaryOperatorKind) 99999;
 }
 
-CXString clang_Cursor_getLiteralString(CXCursor cursor)
+CXString sealang_Cursor_getLiteralString(CXCursor cursor)
 {
     if (cursor.kind == CXCursor_IntegerLiteral) {
         clang::IntegerLiteral *intLiteral = (clang::IntegerLiteral *) clang::getCursorExpr(cursor);

@@ -4,15 +4,16 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{7078D80D-317F-4E23-A7B7-7196E8E2FC83}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{F933EFCD-20A4-4EA4-8DC4-749AB4EA7C32}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SealangSharp</RootNamespace>
-    <AssemblyName>SealangSharp</AssemblyName>
+    <RootNamespace>SealangSharpTest</RootNamespace>
+    <AssemblyName>SealangSharpTest</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -22,6 +23,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -42,18 +44,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="sealang.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\build\llvm\Debug\bin\libclang.dll">
-      <Link>libclang.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <ProjectReference Include="..\SealangSharp\SealangSharp.csproj">
+      <Project>{7078d80d-317f-4e23-a7b7-7196e8e2fc83}</Project>
+      <Name>SealangSharp</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\build\sealang\Debug\sealang.dll">
-      <Link>sealang.dll</Link>
+    <None Include="main.c">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

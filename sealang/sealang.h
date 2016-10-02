@@ -9,25 +9,36 @@
 extern "C" {
 #endif
 
+/* MSVC DLL import/export. */
+#ifdef _MSC_VER
+#ifdef _SEALANG_LIB_
+#define SEALANG_LINKAGE __declspec(dllexport)
+#else
+#define SEALANG_LINKAGE __declspec(dllimport)
+#endif
+#else
+#define SEALANG_LINKAGE
+#endif
+
 /**
  * \brief Returns string representation of unary and binary operators
  */
-CXString clang_Cursor_getOperatorString(CXCursor cursor);
+SEALANG_LINKAGE CXString sealang_Cursor_getOperatorString(CXCursor cursor);
 
 /**
  * \brief Returns Opcode of binary operator
  */
-clang::BinaryOperatorKind clang_Cursor_getBinaryOpcode(CXCursor cursor);
+SEALANG_LINKAGE clang::BinaryOperatorKind sealang_Cursor_getBinaryOpcode(CXCursor cursor);
 
 /**
  * \brief Returns Opcode of unary operator
  */
-clang::UnaryOperatorKind clang_Cursor_getUnaryOpcode(CXCursor cursor);
+SEALANG_LINKAGE clang::UnaryOperatorKind sealang_Cursor_getUnaryOpcode(CXCursor cursor);
 
 /**
  * \brief Returns string representation of literal cursor (1.f, 1000L, etc)
  */
-CXString clang_Cursor_getLiteralString(CXCursor cursor);
+SEALANG_LINKAGE CXString sealang_Cursor_getLiteralString(CXCursor cursor);
 
 /**
  * \brief Returns for-loop init cursor [for(init;cond;inc)], or CXCursor_NoDeclFound if there is no decl,
