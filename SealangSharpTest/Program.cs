@@ -6,7 +6,7 @@ using SealangSharp;
 
 namespace SealangSharpTest
 {
-	static class Program
+	internal static class Program
 	{
 		private static TextWriter _writer;
 		private static int _indentLevel = 2;
@@ -78,16 +78,39 @@ namespace SealangSharpTest
 		{
 			var cursorKind = clang.getCursorKind(cursor);
 
-			if (cursorKind == CXCursorKind.CXCursor_BinaryOperator)
-			{
-				var opCode = sealang.cursor_getBinaryOpcode(cursor);
+			var line = string.Format("// {0}- {1} - {2}", clang.getCursorKindSpelling(cursorKind),
+				clang.getCursorSpelling(cursor),
+				clang.getTypeSpelling(clang.getCursorType(cursor)));
 
-				var k = 5;
+			var addition = string.Empty;
+
+			switch (cursorKind)
+			{
+				case CXCursorKind.CXCursor_UnaryOperator:
+					addition = string.Format("Unary Operator: {0} ({1})",
+						sealang.cursor_getUnaryOpcode(cursor),
+						sealang.cursor_getOperatorString(cursor));
+					break;
+				case CXCursorKind.CXCursor_BinaryOperator:
+					addition = string.Format("Binary Operator: {0} ({1})",
+						sealang.cursor_getBinaryOpcode(cursor),
+						sealang.cursor_getOperatorString(cursor));
+					break;
+				case CXCursorKind.CXCursor_IntegerLiteral:
+				case CXCursorKind.CXCursor_FloatingLiteral:
+				case CXCursorKind.CXCursor_CharacterLiteral:
+				case CXCursorKind.CXCursor_StringLiteral:
+					addition = string.Format("Literal: {0}",
+						sealang.cursor_getLiteralString(cursor));
+					break;
 			}
 
-			IndentedWriteLine(string.Format("// {0}- {1} - {2}", clang.getCursorKindSpelling(cursorKind),
-				clang.getCursorSpelling(cursor),
-				clang.getTypeSpelling(clang.getCursorType(cursor))));
+			if (!string.IsNullOrEmpty(addition))
+			{
+				line += " [" + addition + "]";
+			}
+
+			IndentedWriteLine(line);
 
 			_indentLevel++;
 			clang.visitChildren(cursor, Visit, new CXClientData(IntPtr.Zero));
