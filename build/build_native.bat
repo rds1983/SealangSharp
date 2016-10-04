@@ -1,0 +1,1 @@
+msbuild sealang.sln /p:Configuration=Release
