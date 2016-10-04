@@ -46,13 +46,13 @@
     <Compile Include="sealang.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\build\llvm\Debug\bin\libclang.dll">
+    <None Include="..\build\llvm\Release\bin\libclang.dll">
       <Link>libclang.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\build\sealang\Debug\sealang.dll">
+    <None Include="..\build\sealang\Release\sealang.dll">
       <Link>sealang.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
