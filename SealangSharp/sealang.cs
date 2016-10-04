@@ -76,23 +76,29 @@ namespace SealangSharp
 		// [C99 6.5.2.4] Postfix increment and decrement
 		PostInc,
 		PostDec,
-// [C99 6.5.3.1] Prefix increment and decrement 
+		
+		// [C99 6.5.3.1] Prefix increment and decrement 
 		PreInc,
 		PreDec,
-// [C99 6.5.3.2] Address and indirection
+		
+		// [C99 6.5.3.2] Address and indirection
 		AddrOf,
 		Deref,
-// [C99 6.5.3.3] Unary arithmetic 
+		
+		// [C99 6.5.3.3] Unary arithmetic 
 		Plus,
 		Minus,
 		Not,
 		LNot,
-// "__real expr"/"__imag expr" Extension.
+		
+		// "__real expr"/"__imag expr" Extension.
 		Real,
 		Imag,
-// __extension__ marker.
+
+		// __extension__ marker.
 		Extension,
-// [C++ Coroutines] co_await operator
+
+		// [C++ Coroutines] co_await operator
 		Coawait
 	}
 
