@@ -1,6 +1,10 @@
 // RUN: %clang_cc1 -verify -fopenmp -ast-print %s | FileCheck %s
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -ast-print %s | FileCheck %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
 // expected-no-diagnostics
 
 #ifndef HEADER
@@ -18,6 +22,11 @@ T foo(T targ, U uarg) {
 #pragma omp target update from(b) if(l<5) device(l-1) nowait depend(inout:l)
   return a + targ + (T)b;
 }
+// CHECK:      static T a;
+// CHECK-NEXT: U b;
+// CHECK-NEXT: int l;
+// CHECK-NEXT: #pragma omp target update to(a) if(l > 5) device(l) nowait depend(inout : l){{$}}
+// CHECK-NEXT: #pragma omp target update from(b) if(l < 5) device(l - 1) nowait depend(inout : l)
 // CHECK:      static int a;
 // CHECK-NEXT: float b;
 // CHECK-NEXT: int l;
@@ -25,11 +34,6 @@ T foo(T targ, U uarg) {
 // CHECK-NEXT: #pragma omp target update from(b) if(l < 5) device(l - 1) nowait depend(inout : l)
 // CHECK:      static char a;
 // CHECK-NEXT: float b;
-// CHECK-NEXT: int l;
-// CHECK-NEXT: #pragma omp target update to(a) if(l > 5) device(l) nowait depend(inout : l)
-// CHECK-NEXT: #pragma omp target update from(b) if(l < 5) device(l - 1) nowait depend(inout : l)
-// CHECK:      static T a;
-// CHECK-NEXT: U b;
 // CHECK-NEXT: int l;
 // CHECK-NEXT: #pragma omp target update to(a) if(l > 5) device(l) nowait depend(inout : l)
 // CHECK-NEXT: #pragma omp target update from(b) if(l < 5) device(l - 1) nowait depend(inout : l)

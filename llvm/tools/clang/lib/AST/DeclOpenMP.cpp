@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 /// \file
-/// \brief This file implements OMPThreadPrivateDecl, OMPCapturedExprDecl
+/// This file implements OMPThreadPrivateDecl, OMPCapturedExprDecl
 /// classes.
 ///
 //===----------------------------------------------------------------------===//
@@ -90,13 +90,19 @@ OMPDeclareReductionDecl::getPrevDeclInScope() const {
 void OMPCapturedExprDecl::anchor() {}
 
 OMPCapturedExprDecl *OMPCapturedExprDecl::Create(ASTContext &C, DeclContext *DC,
-                                                 IdentifierInfo *Id,
-                                                 QualType T) {
-  return new (C, DC) OMPCapturedExprDecl(C, DC, Id, T);
+                                                 IdentifierInfo *Id, QualType T,
+                                                 SourceLocation StartLoc) {
+  return new (C, DC) OMPCapturedExprDecl(
+      C, DC, Id, T, C.getTrivialTypeSourceInfo(T), StartLoc);
 }
 
 OMPCapturedExprDecl *OMPCapturedExprDecl::CreateDeserialized(ASTContext &C,
                                                              unsigned ID) {
-  return new (C, ID) OMPCapturedExprDecl(C, nullptr, nullptr, QualType());
+  return new (C, ID) OMPCapturedExprDecl(C, nullptr, nullptr, QualType(),
+                                         /*TInfo=*/nullptr, SourceLocation());
 }
 
+SourceRange OMPCapturedExprDecl::getSourceRange() const {
+  assert(hasInit());
+  return SourceRange(getInit()->getLocStart(), getInit()->getLocEnd());
+}

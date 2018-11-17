@@ -4,7 +4,6 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Type.h"
 #include "clang/Analysis/Analyses/FormatString.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace clang {
 
@@ -24,7 +23,7 @@ public:
 };
 
 namespace analyze_format_string {
-  
+
 OptionalAmount ParseAmount(const char *&Beg, const char *E);
 OptionalAmount ParseNonPositionAmount(const char *&Beg, const char *E,
                                       unsigned &argIndex);
@@ -32,12 +31,12 @@ OptionalAmount ParseNonPositionAmount(const char *&Beg, const char *E,
 OptionalAmount ParsePositionAmount(FormatStringHandler &H,
                                    const char *Start, const char *&Beg,
                                    const char *E, PositionContext p);
-  
+
 bool ParseFieldWidth(FormatStringHandler &H,
                      FormatSpecifier &CS,
                      const char *Start, const char *&Beg, const char *E,
                      unsigned *argIndex);
-    
+
 bool ParseArgPosition(FormatStringHandler &H,
                       FormatSpecifier &CS, const char *Start,
                       const char *&Beg, const char *E);
@@ -63,7 +62,7 @@ public:
   SpecifierResult(const char *start,
                   const T &fs)
   : FS(fs), Start(start), Stop(false) {}
-  
+
   const char *getStart() const { return Start; }
   bool shouldStop() const { return Stop; }
   bool hasValue() const { return Start != nullptr; }
@@ -73,7 +72,7 @@ public:
   }
   const T &getValue() { return FS; }
 };
-  
+
 } // end analyze_format_string namespace
 } // end clang namespace
 

@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 %s -fsyntax-only -verify -fms-extensions -Wunknown-pragmas
-// RUN: not %clang_cc1 %s -fms-extensions -E | FileCheck %s
+// RUN: %clang_cc1 -triple i686-unknown-windows-msvc %s -fsyntax-only -verify -fms-extensions -Wunknown-pragmas
+// RUN: not %clang_cc1 -triple i686-unknown-windows-msvc %s -fms-extensions -E | FileCheck %s
 // REQUIRES: non-ps4-sdk
 
 // rdar://6495941
@@ -162,3 +162,39 @@ void g() {}
 
 // Test that runtime_checks is parsed but ignored.
 #pragma runtime_checks("sc", restore) // no-warning
+
+// Test pragma intrinsic
+#pragma intrinsic(memset) // no-warning
+#pragma intrinsic(memcpy, strlen, strlen) // no-warning
+#pragma intrinsic() // no-warning
+#pragma intrinsic(asdf) // expected-warning {{'asdf' is not a recognized builtin; consider including <intrin.h>}}
+#pragma intrinsic(main) // expected-warning {{'main' is not a recognized builtin; consider including <intrin.h>}}
+#pragma intrinsic( // expected-warning {{missing ')' after}}
+#pragma intrinsic(int) // expected-warning {{missing ')' after}}
+#pragma intrinsic(strcmp) asdf // expected-warning {{extra tokens at end}}
+
+#define __INTRIN_H  // there should be no notes after defining __INTRIN_H
+#pragma intrinsic(asdf) // expected-warning-re {{'asdf' is not a recognized builtin{{$}}}}
+#pragma intrinsic(memset) // no-warning
+#undef __INTRIN_H
+#pragma intrinsic(asdf) // expected-warning {{'asdf' is not a recognized builtin; consider including <intrin.h>}}
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wignored-pragma-intrinsic"
+#pragma intrinsic(asdf) // no-warning
+#pragma clang diagnostic pop
+#pragma intrinsic(asdf) // expected-warning {{'asdf' is not a recognized builtin; consider including <intrin.h>}}
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wignored-pragmas"
+#pragma intrinsic(asdf) // no-warning
+#pragma clang diagnostic pop
+#pragma intrinsic(asdf) // expected-warning {{'asdf' is not a recognized builtin; consider including <intrin.h>}}
+
+#pragma optimize          // expected-warning{{missing '(' after '#pragma optimize'}}
+#pragma optimize(         // expected-warning{{expected string literal in '#pragma optimize'}}
+#pragma optimize(a        // expected-warning{{expected string literal in '#pragma optimize'}}
+#pragma optimize("g"      // expected-warning{{expected ',' in '#pragma optimize'}}
+#pragma optimize("g",     // expected-warning{{missing argument to '#pragma optimize'; expected 'on' or 'off'}}
+#pragma optimize("g",xyz  // expected-warning{{unexpected argument 'xyz' to '#pragma optimize'; expected 'on' or 'off'}}
+#pragma optimize("g",on)  // expected-warning{{#pragma optimize' is not supported}}

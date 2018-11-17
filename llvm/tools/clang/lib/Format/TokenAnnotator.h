@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// \brief This file implements a token annotator, i.e. creates
+/// This file implements a token annotator, i.e. creates
 /// \c AnnotatedTokens out of \c FormatTokens with required extra information.
 ///
 //===----------------------------------------------------------------------===//
@@ -18,7 +18,6 @@
 
 #include "UnwrappedLineParser.h"
 #include "clang/Format/Format.h"
-#include <string>
 
 namespace clang {
 class SourceManager;
@@ -40,10 +39,13 @@ class AnnotatedLine {
 public:
   AnnotatedLine(const UnwrappedLine &Line)
       : First(Line.Tokens.front().Tok), Level(Line.Level),
+        MatchingOpeningBlockLineIndex(Line.MatchingOpeningBlockLineIndex),
+        MatchingClosingBlockLineIndex(Line.MatchingClosingBlockLineIndex),
         InPPDirective(Line.InPPDirective),
         MustBeDeclaration(Line.MustBeDeclaration), MightBeFunctionDecl(false),
         IsMultiVariableDeclStmt(false), Affected(false),
-        LeadingEmptyLinesAffected(false), ChildrenAffected(false) {
+        LeadingEmptyLinesAffected(false), ChildrenAffected(false),
+        FirstStartColumn(Line.FirstStartColumn) {
     assert(!Line.Tokens.empty());
 
     // Calculate Next and Previous for all tokens. Note that we must overwrite
@@ -110,6 +112,8 @@ public:
 
   LineType Type;
   unsigned Level;
+  size_t MatchingOpeningBlockLineIndex;
+  size_t MatchingClosingBlockLineIndex;
   bool InPPDirective;
   bool MustBeDeclaration;
   bool MightBeFunctionDecl;
@@ -123,8 +127,10 @@ public:
   /// input ranges.
   bool LeadingEmptyLinesAffected;
 
-  /// \c True if a one of this line's children intersects with an input range.
+  /// \c True if one of this line's children intersects with an input range.
   bool ChildrenAffected;
+
+  unsigned FirstStartColumn;
 
 private:
   // Disallow copying.
@@ -132,14 +138,14 @@ private:
   void operator=(const AnnotatedLine &) = delete;
 };
 
-/// \brief Determines extra information about the tokens comprising an
+/// Determines extra information about the tokens comprising an
 /// \c UnwrappedLine.
 class TokenAnnotator {
 public:
   TokenAnnotator(const FormatStyle &Style, const AdditionalKeywords &Keywords)
       : Style(Style), Keywords(Keywords) {}
 
-  /// \brief Adapts the indent levels of comment lines to the indent of the
+  /// Adapts the indent levels of comment lines to the indent of the
   /// subsequent line.
   // FIXME: Can/should this be done in the UnwrappedLineParser?
   void setCommentLineLevels(SmallVectorImpl<AnnotatedLine *> &Lines);
@@ -148,14 +154,14 @@ public:
   void calculateFormattingInformation(AnnotatedLine &Line);
 
 private:
-  /// \brief Calculate the penalty for splitting before \c Tok.
+  /// Calculate the penalty for splitting before \c Tok.
   unsigned splitPenalty(const AnnotatedLine &Line, const FormatToken &Tok,
                         bool InFunctionDecl);
 
   bool spaceRequiredBetween(const AnnotatedLine &Line, const FormatToken &Left,
                             const FormatToken &Right);
 
-  bool spaceRequiredBefore(const AnnotatedLine &Line, const FormatToken &Tok);
+  bool spaceRequiredBefore(const AnnotatedLine &Line, const FormatToken &Right);
 
   bool mustBreakBefore(const AnnotatedLine &Line, const FormatToken &Right);
 

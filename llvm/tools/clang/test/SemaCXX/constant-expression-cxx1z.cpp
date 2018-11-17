@@ -25,3 +25,37 @@ namespace BaseClassAggregateInit {
   constexpr D d5 = { __INT_MAX__ }; // expected-error {{must be initialized by a constant expression}}
   // expected-note-re@-1 {{in call to 'A({{.*}})'}}
 }
+
+namespace NoexceptFunctionTypes {
+  template<typename T> constexpr bool f() noexcept(true) { return true; }
+  constexpr bool (*fp)() = f<int>;
+  static_assert(f<int>());
+  static_assert(fp());
+
+  template<typename T> struct A {
+    constexpr bool f() noexcept(true) { return true; }
+    constexpr bool g() { return f(); }
+    constexpr bool operator()() const noexcept(true) { return true; }
+  };
+  static_assert(A<int>().f());
+  static_assert(A<int>().g());
+  static_assert(A<int>()());
+}
+
+namespace Cxx17CD_NB_GB19 {
+  const int &r = 0;
+  constexpr int n = r;
+}
+
+namespace PR37585 {
+template <class T> struct S { static constexpr bool value = true; };
+template <class T> constexpr bool f() { return true; }
+template <class T> constexpr bool v = true;
+
+void test() {
+  if constexpr (true) {}
+  else if constexpr (f<int>()) {}
+  else if constexpr (S<int>::value) {}
+  else if constexpr (v<int>) {}
+}
+}

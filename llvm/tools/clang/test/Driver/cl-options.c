@@ -14,6 +14,9 @@
 // C_P: "-E"
 // C_P: "-C"
 
+// RUN: %clang_cl /d1reportAllClassLayout -### -- %s 2>&1 | FileCheck -check-prefix=d1reportAllClassLayout %s
+// d1reportAllClassLayout: -fdump-record-layouts
+
 // RUN: %clang_cl /Dfoo=bar /D bar=baz /DMYDEF#value /DMYDEF2=foo#bar /DMYDEF3#a=b /DMYDEF4# \
 // RUN:    -### -- %s 2>&1 | FileCheck -check-prefix=D %s
 // D: "-D" "foo=bar"
@@ -49,6 +52,28 @@
 // RUN: %clang_cl /fp:fast /fp:strict -### -- %s 2>&1 | FileCheck -check-prefix=fpstrict %s
 // fpstrict-NOT: -menable-unsafe-fp-math
 // fpstrict-NOT: -ffast-math
+
+// RUN: %clang_cl /Z7 -gcolumn-info -### -- %s 2>&1 | FileCheck -check-prefix=gcolumn %s
+// gcolumn: -dwarf-column-info
+
+// RUN: %clang_cl /Z7 -gno-column-info -### -- %s 2>&1 | FileCheck -check-prefix=gnocolumn %s
+// gnocolumn-NOT: -dwarf-column-info
+
+// RUN: %clang_cl /Z7 -### -- %s 2>&1 | FileCheck -check-prefix=gdefcolumn %s
+// gdefcolumn-NOT: -dwarf-column-info
+
+// RUN: %clang_cl -### /FA -fprofile-instr-generate -- %s 2>&1 | FileCheck -check-prefix=CHECK-PROFILE-GENERATE %s
+// RUN: %clang_cl -### /FA -fprofile-instr-generate=/tmp/somefile.profraw -- %s 2>&1 | FileCheck -check-prefix=CHECK-PROFILE-GENERATE-FILE %s
+// RUN: %clang_cl -### /FA -fprofile-instr-generate -fprofile-instr-use -- %s 2>&1 | FileCheck -check-prefix=CHECK-NO-MIX-GEN-USE %s
+// RUN: %clang_cl -### /FA -fprofile-instr-generate -fprofile-instr-use=file -- %s 2>&1 | FileCheck -check-prefix=CHECK-NO-MIX-GEN-USE %s
+// CHECK-PROFILE-GENERATE: "-fprofile-instrument=clang"
+// CHECK-PROFILE-GENERATE-FILE: "-fprofile-instrument-path=/tmp/somefile.profraw"
+// CHECK-NO-MIX-GEN-USE: '{{[a-z=-]*}}' not allowed with '{{[a-z=-]*}}'
+
+// RUN: %clang_cl -### /FA -fprofile-instr-use -- %s 2>&1 | FileCheck -check-prefix=CHECK-PROFILE-USE %s
+// RUN: %clang_cl -### /FA -fprofile-instr-use=/tmp/somefile.prof -- %s 2>&1 | FileCheck -check-prefix=CHECK-PROFILE-USE-FILE %s
+// CHECK-PROFILE-USE: "-fprofile-instrument-use-path=default.profdata"
+// CHECK-PROFILE-USE-FILE: "-fprofile-instrument-use-path=/tmp/somefile.prof"
 
 // RUN: %clang_cl /GA -### -- %s 2>&1 | FileCheck -check-prefix=GA %s
 // GA: -ftls-model=local-exec
@@ -153,6 +178,9 @@
 // Oy_2: -momit-leaf-frame-pointer
 // Oy_2: -O2
 
+// RUN: %clang_cl --target=i686-pc-win32 -Werror /O2 /O2 -### -- %s 2>&1 | FileCheck -check-prefix=O2O2 %s
+// O2O2: "-O2"
+
 // RUN: %clang_cl /Zs -Werror /Oy -- %s 2>&1
 
 // RUN: %clang_cl --target=i686-pc-win32 -Werror /Oy- -### -- %s 2>&1 | FileCheck -check-prefix=Oy_ %s
@@ -169,11 +197,27 @@
 
 // RUN: %clang_cl /E /showIncludes -### -- %s 2>&1 | FileCheck -check-prefix=showIncludes_E %s
 // RUN: %clang_cl /EP /showIncludes -### -- %s 2>&1 | FileCheck -check-prefix=showIncludes_E %s
-// showIncludes_E: warning: argument unused during compilation: '--show-includes'
+// RUN: %clang_cl /E /EP /showIncludes -### -- %s 2>&1 | FileCheck -check-prefix=showIncludes_E %s
+// RUN: %clang_cl /EP /P /showIncludes -### -- %s 2>&1 | FileCheck -check-prefix=showIncludes_E %s
+// showIncludes_E-NOT: warning: argument unused during compilation: '--show-includes'
 
+// /source-charset: should warn on everything except UTF-8.
+// RUN: %clang_cl /source-charset:utf-16 -### -- %s 2>&1 | FileCheck -check-prefix=source-charset-utf-16 %s
+// source-charset-utf-16: invalid value 'utf-16'
+
+// /execution-charset: should warn on everything except UTF-8.
+// RUN: %clang_cl /execution-charset:utf-16 -### -- %s 2>&1 | FileCheck -check-prefix=execution-charset-utf-16 %s
+// execution-charset-utf-16: invalid value 'utf-16'
+//
 // RUN: %clang_cl /Umymacro -### -- %s 2>&1 | FileCheck -check-prefix=U %s
 // RUN: %clang_cl /U mymacro -### -- %s 2>&1 | FileCheck -check-prefix=U %s
 // U: "-U" "mymacro"
+
+// RUN: %clang_cl /validate-charset -### -- %s 2>&1 | FileCheck -check-prefix=validate-charset %s
+// validate-charset: -Winvalid-source-encoding
+
+// RUN: %clang_cl /validate-charset- -### -- %s 2>&1 | FileCheck -check-prefix=validate-charset_ %s
+// validate-charset_: -Wno-invalid-source-encoding
 
 // RUN: %clang_cl /vd2 -### -- %s 2>&1 | FileCheck -check-prefix=VD2 %s
 // VD2: -vtordisp-mode=2
@@ -209,9 +253,10 @@
 // RUN: %clang_cl /W2 -### -- %s 2>&1 | FileCheck -check-prefix=W1 %s
 // RUN: %clang_cl /W3 -### -- %s 2>&1 | FileCheck -check-prefix=W1 %s
 // RUN: %clang_cl /W4 -### -- %s 2>&1 | FileCheck -check-prefix=W4 %s
-// RUN: %clang_cl /Wall -### -- %s 2>&1 | FileCheck -check-prefix=W4 %s
+// RUN: %clang_cl /Wall -### -- %s 2>&1 | FileCheck -check-prefix=Weverything %s
 // W1: -Wall
 // W4: -WCL4
+// Weverything: -Weverything
 
 // RUN: %clang_cl /WX -### -- %s 2>&1 | FileCheck -check-prefix=WX %s
 // WX: -Werror
@@ -246,6 +291,9 @@
 // RUN: %clang_cl /TP /c /GX /GX- -### -- %s 2>&1 | FileCheck -check-prefix=GX_ %s
 // GX_-NOT: "-fcxx-exceptions" "-fexceptions"
 
+// RUN: %clang_cl /d1PP -### -- %s 2>&1 | FileCheck -check-prefix=d1PP %s
+// d1PP: -dD
+
 // We forward any unrecognized -W diagnostic options to cc1.
 // RUN: %clang_cl -Wunused-pragmas -### -- %s 2>&1 | FileCheck -check-prefix=WJoined %s
 // WJoined: "-cc1"
@@ -258,6 +306,17 @@
 // STRICT-NOT: "-relaxed-aliasing"
 // RUN: %clang_cl -c -fno-strict-aliasing -### -- %s 2>&1 | FileCheck -check-prefix=NOSTRICT %s
 // NOSTRICT: "-relaxed-aliasing"
+
+// We recognize -f[no-]delayed-template-parsing.
+// /Zc:twoPhase[-] has the opposite meaning.
+// RUN: %clang_cl -c -### -- %s 2>&1 | FileCheck -check-prefix=DELAYEDDEFAULT %s
+// DELAYEDDEFAULT: "-fdelayed-template-parsing"
+// RUN: %clang_cl -c -fdelayed-template-parsing -### -- %s 2>&1 | FileCheck -check-prefix=DELAYEDON %s
+// RUN: %clang_cl -c /Zc:twoPhase- -### -- %s 2>&1 | FileCheck -check-prefix=DELAYEDON %s
+// DELAYEDON: "-fdelayed-template-parsing"
+// RUN: %clang_cl -c -fno-delayed-template-parsing -### -- %s 2>&1 | FileCheck -check-prefix=DELAYEDOFF %s
+// RUN: %clang_cl -c /Zc:twoPhase -### -- %s 2>&1 | FileCheck -check-prefix=DELAYEDOFF %s
+// DELAYEDOFF-NOT: "-fdelayed-template-parsing"
 
 // For some warning ids, we can map from MSVC warning to Clang warning.
 // RUN: %clang_cl -wd4005 -wd4100 -wd4910 -wd4996 -### -- %s 2>&1 | FileCheck -check-prefix=Wno %s
@@ -276,6 +335,7 @@
 // RUN:    /d2FastFail \
 // RUN:    /d2Zi+ \
 // RUN:    /errorReport:foo \
+// RUN:    /execution-charset:utf-8 \
 // RUN:    /FC \
 // RUN:    /Fdfoo \
 // RUN:    /FS \
@@ -284,14 +344,26 @@
 // RUN:    /GS- \
 // RUN:    /kernel- \
 // RUN:    /nologo \
+// RUN:    /Og \
 // RUN:    /openmp- \
+// RUN:    /permissive- \
 // RUN:    /RTC1 \
 // RUN:    /sdl \
 // RUN:    /sdl- \
+// RUN:    /source-charset:utf-8 \
+// RUN:    /utf-8 \
 // RUN:    /vmg \
 // RUN:    /volatile:iso \
 // RUN:    /w12345 \
 // RUN:    /wd1234 \
+// RUN:    /Zc:__cplusplus \
+// RUN:    /Zc:auto \
+// RUN:    /Zc:forScope \
+// RUN:    /Zc:inline \
+// RUN:    /Zc:rvalueCast \
+// RUN:    /Zc:ternary \
+// RUN:    /Zc:wchar_t \
+// RUN:    /Zm \
 // RUN:    /Zo \
 // RUN:    /Zo- \
 // RUN:    -### -- %s 2>&1 | FileCheck -check-prefix=IGNORED %s
@@ -315,6 +387,8 @@
 // (/Zs is for syntax-only)
 // RUN: %clang_cl /Zs \
 // RUN:     /AIfoo \
+// RUN:     /Bt \
+// RUN:     /Bt+ \
 // RUN:     /clr:pure \
 // RUN:     /docname \
 // RUN:     /EHsc \
@@ -325,7 +399,6 @@
 // RUN:     /FAs \
 // RUN:     /FAu \
 // RUN:     /favor:blend \
-// RUN:     /FC \
 // RUN:     /Fifoo \
 // RUN:     /Fmfoo \
 // RUN:     /FpDebug\main.pch \
@@ -396,6 +469,12 @@
 // Xclang: "-cc1"
 // Xclang: "hellocc1"
 
+// Files under /Users are often confused with the /U flag. (This could happen
+// for other flags too, but this is the one people run into.)
+// RUN: %clang_cl /c /Users/me/myfile.c -### 2>&1 | FileCheck -check-prefix=SlashU %s
+// SlashU: warning: '/Users/me/myfile.c' treated as the '/U' option
+// SlashU: note: Use '--' to treat subsequent arguments as filenames
+
 // RTTI is on by default. /GR- controls -fno-rtti-data.
 // RUN: %clang_cl /c /GR- -### -- %s 2>&1 | FileCheck -check-prefix=NoRTTI %s
 // NoRTTI: "-fno-rtti-data"
@@ -432,10 +511,10 @@
 // BreproDefault: "-mincremental-linker-compatible"
 
 // RUN: %clang_cl /Brepro- /Brepro /c '-###' -- %s 2>&1 | FileCheck -check-prefix=Brepro %s
-// Brepro: "-mincremental-linker-compatible"
+// Brepro-NOT: "-mincremental-linker-compatible"
 
 // RUN: %clang_cl /Brepro /Brepro- /c '-###' -- %s 2>&1 | FileCheck -check-prefix=Brepro_ %s
-// Brepro_-NOT: "-mincremental-linker-compatible"
+// Brepro_: "-mincremental-linker-compatible"
 
 // This test was super sneaky: "/Z7" means "line-tables", but "-gdwarf" occurs
 // later on the command line, so it should win. Interestingly the cc1 arguments
@@ -459,8 +538,11 @@
 // RUN: %clang_cl -fmsc-version=1900 -TP -std:c++14 -### -- %s 2>&1 | FileCheck -check-prefix=STDCXX14 %s
 // STDCXX14: -std=c++14
 
+// RUN: %clang_cl -fmsc-version=1900 -TP -std:c++17 -### -- %s 2>&1 | FileCheck -check-prefix=STDCXX17 %s
+// STDCXX17: -std=c++17
+
 // RUN: %clang_cl -fmsc-version=1900 -TP -std:c++latest -### -- %s 2>&1 | FileCheck -check-prefix=STDCXXLATEST %s
-// STDCXXLATEST: -std=c++1z
+// STDCXXLATEST: -std=c++2a
 
 // RUN: env CL="/Gy" %clang_cl -### -- %s 2>&1 | FileCheck -check-prefix=ENV-CL %s
 // ENV-CL: "-ffunction-sections"
@@ -468,15 +550,34 @@
 // RUN: env CL="/Gy" _CL_="/Gy- -- %s" %clang_cl -### 2>&1 | FileCheck -check-prefix=ENV-_CL_ %s
 // ENV-_CL_-NOT: "-ffunction-sections"
 
+// RUN: env CL="%s" _CL_="%s" not %clang --rsp-quoting=windows -c
+
+// RUN: %clang_cl -### /c -flto -- %s 2>&1 | FileCheck -check-prefix=LTO %s
+// LTO: -flto
+
+// RUN: %clang_cl -### /c -flto=thin -- %s 2>&1 | FileCheck -check-prefix=LTO-THIN %s
+// LTO-THIN: -flto=thin
+
+// RUN: %clang_cl -### -Fe%t.exe -entry:main -flto -- %s 2>&1 | FileCheck -check-prefix=LTO-WITHOUT-LLD %s
+// LTO-WITHOUT-LLD: LTO requires -fuse-ld=lld
+
 // Accept "core" clang options.
 // (/Zs is for syntax-only, -Werror makes it fail hard on unknown options)
 // RUN: %clang_cl \
 // RUN:     --driver-mode=cl \
+// RUN:     -fblocks \
+// RUN:     -fno-blocks \
+// RUN:     -fbuiltin \
+// RUN:     -fno-builtin \
+// RUN:     -fno-builtin-strcpy \
 // RUN:     -fcolor-diagnostics \
 // RUN:     -fno-color-diagnostics \
+// RUN:     -fcoverage-mapping \
+// RUN:     -fno-coverage-mapping \
 // RUN:     -fdiagnostics-color \
 // RUN:     -fno-diagnostics-color \
 // RUN:     -fdiagnostics-parseable-fixits \
+// RUN:     -fdiagnostics-absolute-paths \
 // RUN:     -ferror-limit=10 \
 // RUN:     -fmsc-version=1800 \
 // RUN:     -fno-strict-aliasing \
@@ -486,10 +587,17 @@
 // RUN:     -fno-ms-compatibility \
 // RUN:     -fms-extensions \
 // RUN:     -fno-ms-extensions \
-// RUN:     -mllvm -disable-llvm-optzns \
-// RUN:     -resource-dir \
+// RUN:     -Xclang -disable-llvm-passes \
+// RUN:     -resource-dir asdf \
+// RUN:     -resource-dir=asdf \
 // RUN:     -Wunused-variable \
 // RUN:     -fmacro-backtrace-limit=0 \
+// RUN:     -fstandalone-debug \
+// RUN:     -flimit-debug-info \
+// RUN:     -flto \
+// RUN:     -fmerge-all-constants \
+// RUN:     -no-canonical-prefixes \
+// RUN:     --version \
 // RUN:     -Werror /Zs -- %s 2>&1
 
 

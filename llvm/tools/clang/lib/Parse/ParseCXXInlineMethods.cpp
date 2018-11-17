@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Parse/Parser.h"
-#include "RAIIObjectsForParser.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/Parse/ParseDiagnostic.h"
+#include "clang/Parse/RAIIObjectsForParser.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Scope.h"
 using namespace clang;
@@ -22,12 +22,10 @@ using namespace clang;
 /// ParseCXXInlineMethodDef - We parsed and verified that the specified
 /// Declarator is a well formed C++ inline method definition. Now lex its body
 /// and store its tokens for parsing after the C++ class is complete.
-NamedDecl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
-                                      AttributeList *AccessAttrs,
-                                      ParsingDeclarator &D,
-                                      const ParsedTemplateInfo &TemplateInfo,
-                                      const VirtSpecifiers& VS,
-                                      SourceLocation PureSpecLoc) {
+NamedDecl *Parser::ParseCXXInlineMethodDef(
+    AccessSpecifier AS, ParsedAttributes &AccessAttrs, ParsingDeclarator &D,
+    const ParsedTemplateInfo &TemplateInfo, const VirtSpecifiers &VS,
+    SourceLocation PureSpecLoc) {
   assert(D.isFunctionDeclarator() && "This isn't a function declarator!");
   assert(Tok.isOneOf(tok::l_brace, tok::colon, tok::kw_try, tok::equal) &&
          "Current token not a '{', ':', '=', or 'try'!");
@@ -166,20 +164,11 @@ NamedDecl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
   }
 
   if (FnD) {
-    // If this is a friend function, mark that it's late-parsed so that
-    // it's still known to be a definition even before we attach the
-    // parsed body.  Sema needs to treat friend function definitions
-    // differently during template instantiation, and it's possible for
-    // the containing class to be instantiated before all its member
-    // function definitions are parsed.
-    //
-    // If you remove this, you can remove the code that clears the flag
-    // after parsing the member.
-    if (D.getDeclSpec().isFriendSpecified()) {
-      FunctionDecl *FD = FnD->getAsFunction();
-      Actions.CheckForFunctionRedefinition(FD);
-      FD->setLateTemplateParsed(true);
-    }
+    FunctionDecl *FD = FnD->getAsFunction();
+    // Track that this function will eventually have a body; Sema needs
+    // to know this.
+    Actions.CheckForFunctionRedefinition(FD);
+    FD->setWillHaveBody(true);
   } else {
     // If semantic analysis could not build a function declaration,
     // just throw away the late-parsed declaration.
@@ -319,7 +308,10 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
     // Introduce the parameter into scope.
     bool HasUnparsed = Param->hasUnparsedDefaultArg();
     Actions.ActOnDelayedCXXMethodParameter(getCurScope(), Param);
-    if (CachedTokens *Toks = LM.DefaultArgs[I].Toks) {
+    std::unique_ptr<CachedTokens> Toks = std::move(LM.DefaultArgs[I].Toks);
+    if (Toks) {
+      ParenBraceBracketBalancer BalancerRAIIObj(*this);
+
       // Mark the end of the default argument so that we know when to stop when
       // we parse it later on.
       Token LastDefaultArgToken = Toks->back();
@@ -343,9 +335,9 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
 
       // The argument isn't actually potentially evaluated unless it is
       // used.
-      EnterExpressionEvaluationContext Eval(Actions,
-                                            Sema::PotentiallyEvaluatedIfUsed,
-                                            Param);
+      EnterExpressionEvaluationContext Eval(
+          Actions,
+          Sema::ExpressionEvaluationContext::PotentiallyEvaluatedIfUsed, Param);
 
       ExprResult DefArgResult;
       if (getLangOpts().CPlusPlus11 && Tok.is(tok::l_brace)) {
@@ -377,9 +369,6 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
 
       if (Tok.is(tok::eof) && Tok.getEofData() == Param)
         ConsumeAnyToken();
-
-      delete Toks;
-      LM.DefaultArgs[I].Toks = nullptr;
     } else if (HasUnparsed) {
       assert(Param->hasInheritedDefaultArg());
       FunctionDecl *Old = cast<FunctionDecl>(LM.Method)->getPreviousDecl();
@@ -395,6 +384,8 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
 
   // Parse a delayed exception-specification, if there is one.
   if (CachedTokens *Toks = LM.ExceptionSpecTokens) {
+    ParenBraceBracketBalancer BalancerRAIIObj(*this);
+
     // Add the 'stop' token.
     Token LastExceptionSpecToken = Toks->back();
     Token ExceptionSpecEnd;
@@ -500,6 +491,8 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
     ++CurTemplateDepthTracker;
   }
 
+  ParenBraceBracketBalancer BalancerRAIIObj(*this);
+
   assert(!LM.Toks.empty() && "Empty body!");
   Token LastBodyToken = LM.Toks.back();
   Token BodyEnd;
@@ -520,7 +513,8 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
 
   // Parse the method body. Function body parsing code is similar enough
   // to be re-used for method bodies as well.
-  ParseScope FnScope(this, Scope::FnScope|Scope::DeclScope);
+  ParseScope FnScope(this, Scope::FnScope | Scope::DeclScope |
+                               Scope::CompoundStmtScope);
   Actions.ActOnStartOfFunctionDef(getCurScope(), LM.D);
 
   if (Tok.is(tok::kw_try)) {
@@ -560,10 +554,6 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
 
   ParseFunctionStatementBody(LM.D, FnScope);
 
-  // Clear the late-template-parsed bit if we set it before.
-  if (LM.D)
-    LM.D->getAsFunction()->setLateTemplateParsed(false);
-
   while (Tok.isNot(tok::eof))
     ConsumeAnyToken();
 
@@ -600,9 +590,9 @@ void Parser::ParseLexedMemberInitializers(ParsingClass &Class) {
 
   if (!Class.LateParsedDeclarations.empty()) {
     // C++11 [expr.prim.general]p4:
-    //   Otherwise, if a member-declarator declares a non-static data member 
+    //   Otherwise, if a member-declarator declares a non-static data member
     //  (9.2) of a class X, the expression this is a prvalue of type "pointer
-    //  to X" within the optional brace-or-equal-initializer. It shall not 
+    //  to X" within the optional brace-or-equal-initializer. It shall not
     //  appear elsewhere in the member-declarator.
     Sema::CXXThisScopeRAII ThisScope(Actions, Class.TagOrTemplate,
                                      /*TypeQuals=*/(unsigned)0);
@@ -611,7 +601,7 @@ void Parser::ParseLexedMemberInitializers(ParsingClass &Class) {
       Class.LateParsedDeclarations[i]->ParseLexedMemberInitializers();
     }
   }
-  
+
   if (!AlreadyHasClassScope)
     Actions.ActOnFinishDelayedMemberDeclarations(getCurScope(),
                                                  Class.TagOrTemplate);
@@ -622,6 +612,8 @@ void Parser::ParseLexedMemberInitializers(ParsingClass &Class) {
 void Parser::ParseLexedMemberInitializer(LateParsedMemberInitializer &MI) {
   if (!MI.Field || MI.Field->isInvalidDecl())
     return;
+
+  ParenBraceBracketBalancer BalancerRAIIObj(*this);
 
   // Append the current token at the end of the new token stream so that it
   // doesn't get lost.
@@ -635,7 +627,7 @@ void Parser::ParseLexedMemberInitializer(LateParsedMemberInitializer &MI) {
 
   Actions.ActOnStartCXXInClassMemberInitializer();
 
-  ExprResult Init = ParseCXXMemberInitializer(MI.Field, /*IsFunction=*/false, 
+  ExprResult Init = ParseCXXMemberInitializer(MI.Field, /*IsFunction=*/false,
                                               EqualLoc);
 
   Actions.ActOnFinishCXXInClassMemberInitializer(MI.Field, EqualLoc,
@@ -733,19 +725,6 @@ bool Parser::ConsumeAndStoreUntil(tok::TokenKind T1, tok::TokenKind T2,
       ConsumeBrace();
       break;
 
-    case tok::code_completion:
-      Toks.push_back(Tok);
-      ConsumeCodeCompletionToken();
-      break;
-
-    case tok::string_literal:
-    case tok::wide_string_literal:
-    case tok::utf8_string_literal:
-    case tok::utf16_string_literal:
-    case tok::utf32_string_literal:
-      Toks.push_back(Tok);
-      ConsumeStringToken();
-      break;
     case tok::semi:
       if (StopAtSemi)
         return false;
@@ -753,14 +732,14 @@ bool Parser::ConsumeAndStoreUntil(tok::TokenKind T1, tok::TokenKind T2,
     default:
       // consume this token.
       Toks.push_back(Tok);
-      ConsumeToken();
+      ConsumeAnyToken(/*ConsumeCodeCompletionTok*/true);
       break;
     }
     isFirstTokenConsumed = false;
   }
 }
 
-/// \brief Consume tokens and store them in the passed token container until
+/// Consume tokens and store them in the passed token container until
 /// we've passed the try keyword and constructor initializers and have consumed
 /// the opening brace of the function body. The opening brace will be consumed
 /// if and only if there was no error.
@@ -832,22 +811,30 @@ bool Parser::ConsumeAndStoreFunctionPrologue(CachedTokens &Toks) {
         }
       }
 
-      if (Tok.isOneOf(tok::identifier, tok::kw_template)) {
+      if (Tok.is(tok::identifier)) {
         Toks.push_back(Tok);
         ConsumeToken();
-      } else if (Tok.is(tok::code_completion)) {
-        Toks.push_back(Tok);
-        ConsumeCodeCompletionToken();
-        // Consume the rest of the initializers permissively.
-        // FIXME: We should be able to perform code-completion here even if
-        //        there isn't a subsequent '{' token.
-        MightBeTemplateArgument = true;
-        break;
       } else {
         break;
       }
     } while (Tok.is(tok::coloncolon));
 
+    if (Tok.is(tok::code_completion)) {
+      Toks.push_back(Tok);
+      ConsumeCodeCompletionToken();
+      if (Tok.isOneOf(tok::identifier, tok::coloncolon, tok::kw_decltype)) {
+        // Could be the start of another member initializer (the ',' has not
+        // been written yet)
+        continue;
+      }
+    }
+
+    if (Tok.is(tok::comma)) {
+      // The initialization is missing, we'll diagnose it later.
+      Toks.push_back(Tok);
+      ConsumeToken();
+      continue;
+    }
     if (Tok.is(tok::less))
       MightBeTemplateArgument = true;
 
@@ -888,6 +875,26 @@ bool Parser::ConsumeAndStoreFunctionPrologue(CachedTokens &Toks) {
       // means the initializer is malformed; we'll diagnose it later.
       if (!getLangOpts().CPlusPlus11)
         return false;
+
+      const Token &PreviousToken = Toks[Toks.size() - 2];
+      if (!MightBeTemplateArgument &&
+          !PreviousToken.isOneOf(tok::identifier, tok::greater,
+                                 tok::greatergreater)) {
+        // If the opening brace is not preceded by one of these tokens, we are
+        // missing the mem-initializer-id. In order to recover better, we need
+        // to use heuristics to determine if this '{' is most likely the
+        // beginning of a brace-init-list or the function body.
+        // Check the token after the corresponding '}'.
+        TentativeParsingAction PA(*this);
+        if (SkipUntil(tok::r_brace) &&
+            !Tok.isOneOf(tok::comma, tok::ellipsis, tok::l_brace)) {
+          // Consider there was a malformed initializer and this is the start
+          // of the function body. We'll diagnose it later.
+          PA.Revert();
+          return false;
+        }
+        PA.Revert();
+      }
     }
 
     // Grab the initializer (or the subexpression of the template argument).
@@ -936,7 +943,7 @@ bool Parser::ConsumeAndStoreFunctionPrologue(CachedTokens &Toks) {
   }
 }
 
-/// \brief Consume and store tokens from the '?' to the ':' in a conditional
+/// Consume and store tokens from the '?' to the ':' in a conditional
 /// expression.
 bool Parser::ConsumeAndStoreConditional(CachedTokens &Toks) {
   // Consume '?'.
@@ -961,7 +968,7 @@ bool Parser::ConsumeAndStoreConditional(CachedTokens &Toks) {
   return true;
 }
 
-/// \brief A tentative parsing action that can also revert token annotations.
+/// A tentative parsing action that can also revert token annotations.
 class Parser::UnannotatedTentativeParsingAction : public TentativeParsingAction {
 public:
   explicit UnannotatedTentativeParsingAction(Parser &Self,

@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-def cl_Group : OptionGroup<"<clang-cl options>">,
+def cl_Group : OptionGroup<"<clang-cl options>">, Flags<[CLOption]>,
   HelpText<"CL.EXE COMPATIBILITY OPTIONS">;
 
 def cl_compile_Group : OptionGroup<"<clang-cl compile-only options>">,
@@ -27,7 +27,7 @@ class CLCompileFlag<string name> : Option<["/", "-"], name, KIND_FLAG>,
   Group<cl_compile_Group>, Flags<[CLOption, DriverOption]>;
 
 class CLIgnoredFlag<string name> : Option<["/", "-"], name, KIND_FLAG>,
-  Group<cl_ignored_Group>, Flags<[CLOption, DriverOption, HelpHidden]>;
+  Group<cl_ignored_Group>, Flags<[CLOption, DriverOption]>;
 
 class CLJoined<string name> : Option<["/", "-"], name, KIND_JOINED>,
   Group<cl_Group>, Flags<[CLOption, DriverOption]>;
@@ -54,13 +54,23 @@ class CLRemainingArgsJoined<string name> : Option<["/", "-"], name,
 
 def _SLASH_Brepro : CLFlag<"Brepro">,
   HelpText<"Emit an object file which can be reproduced over time">,
-  Alias<mincremental_linker_compatible>;
+  Alias<mno_incremental_linker_compatible>;
 def _SLASH_Brepro_ : CLFlag<"Brepro-">,
   HelpText<"Emit an object file which cannot be reproduced over time">,
-  Alias<mno_incremental_linker_compatible>;
+  Alias<mincremental_linker_compatible>;
 def _SLASH_C : CLFlag<"C">,
   HelpText<"Don't discard comments when preprocessing">, Alias<C>;
 def _SLASH_c : CLFlag<"c">, HelpText<"Compile only">, Alias<c>;
+def _SLASH_d1PP : CLFlag<"d1PP">,
+  HelpText<"Retain macro definitions in /E mode">, Alias<dD>;
+def _SLASH_d1reportAllClassLayout : CLFlag<"d1reportAllClassLayout">,
+  HelpText<"Dump record layout information">, Alias<fdump_record_layouts>;
+def _SLASH_diagnostics_caret : CLFlag<"diagnostics:caret">,
+  HelpText<"Enable caret and column diagnostics (on by default)">;
+def _SLASH_diagnostics_column : CLFlag<"diagnostics:column">,
+  HelpText<"Disable caret diagnostics but keep column info">;
+def _SLASH_diagnostics_classic : CLFlag<"diagnostics:classic">,
+  HelpText<"Disable column and caret diagnostics">;
 def _SLASH_D : CLJoinedOrSeparate<"D">, HelpText<"Define macro">,
   MetaVarName<"<macro[=value]>">, Alias<D>;
 def _SLASH_E : CLFlag<"E">, HelpText<"Preprocess to stdout">, Alias<E>;
@@ -120,16 +130,25 @@ def _SLASH_Qvec_ : CLFlag<"Qvec-">,
 def _SLASH_showIncludes : CLFlag<"showIncludes">,
   HelpText<"Print info about included files to stderr">,
   Alias<show_includes>;
+def _SLASH_source_charset : CLCompileJoined<"source-charset:">,
+  HelpText<"Source encoding, supports only UTF-8">, Alias<finput_charset_EQ>;
+def _SLASH_execution_charset : CLCompileJoined<"execution-charset:">,
+  HelpText<"Runtime encoding, supports only UTF-8">, Alias<fexec_charset_EQ>;
 def _SLASH_std : CLCompileJoined<"std:">,
   HelpText<"Language standard to compile for">;
 def _SLASH_U : CLJoinedOrSeparate<"U">, HelpText<"Undefine macro">,
   MetaVarName<"<macro>">, Alias<U>;
+def _SLASH_validate_charset : CLFlag<"validate-charset">,
+  Alias<W_Joined>, AliasArgs<["invalid-source-encoding"]>;
+def _SLASH_validate_charset_ : CLFlag<"validate-charset-">,
+  Alias<W_Joined>, AliasArgs<["no-invalid-source-encoding"]>;
 def _SLASH_W0 : CLFlag<"W0">, HelpText<"Disable all warnings">, Alias<w>;
 def _SLASH_W1 : CLFlag<"W1">, HelpText<"Enable -Wall">, Alias<Wall>;
 def _SLASH_W2 : CLFlag<"W2">, HelpText<"Enable -Wall">, Alias<Wall>;
 def _SLASH_W3 : CLFlag<"W3">, HelpText<"Enable -Wall">, Alias<Wall>;
 def _SLASH_W4 : CLFlag<"W4">, HelpText<"Enable -Wall and -Wextra">, Alias<WCL4>;
-def _SLASH_Wall : CLFlag<"Wall">, HelpText<"Enable -Wall and -Wextra">, Alias<WCL4>;
+def _SLASH_Wall : CLFlag<"Wall">, HelpText<"Enable -Weverything">,
+  Alias<W_Joined>, AliasArgs<["everything"]>;
 def _SLASH_WX : CLFlag<"WX">, HelpText<"Treat warnings as errors">,
   Alias<W_Joined>, AliasArgs<["error"]>;
 def _SLASH_WX_ : CLFlag<"WX-">, HelpText<"Do not treat warnings as errors">,
@@ -137,6 +156,8 @@ def _SLASH_WX_ : CLFlag<"WX-">, HelpText<"Do not treat warnings as errors">,
 def _SLASH_w_flag : CLFlag<"w">, HelpText<"Disable all warnings">, Alias<w>;
 def _SLASH_wd4005 : CLFlag<"wd4005">, Alias<W_Joined>,
   AliasArgs<["no-macro-redefined"]>;
+def _SLASH_wd4018 : CLFlag<"wd4018">, Alias<W_Joined>,
+  AliasArgs<["no-sign-compare"]>;
 def _SLASH_wd4100 : CLFlag<"wd4100">, Alias<W_Joined>,
   AliasArgs<["no-unused-parameter"]>;
 def _SLASH_wd4910 : CLFlag<"wd4910">, Alias<W_Joined>,
@@ -145,6 +166,9 @@ def _SLASH_wd4996 : CLFlag<"wd4996">, Alias<W_Joined>,
   AliasArgs<["no-deprecated-declarations"]>;
 def _SLASH_vd : CLJoined<"vd">, HelpText<"Control vtordisp placement">,
   Alias<vtordisp_mode_EQ>;
+def _SLASH_X : CLFlag<"X">,
+  HelpText<"Don't add %INCLUDE% to the include search path">,
+  Alias<nostdlibinc>;
 def _SLASH_Zc_sizedDealloc : CLFlag<"Zc:sizedDealloc">,
   HelpText<"Enable C++14 sized global deallocation functions">,
   Alias<fsized_deallocation>;
@@ -164,6 +188,12 @@ def _SLASH_Zc_trigraphs : CLFlag<"Zc:trigraphs">,
   HelpText<"Enable trigraphs">, Alias<ftrigraphs>;
 def _SLASH_Zc_trigraphs_off : CLFlag<"Zc:trigraphs-">,
   HelpText<"Disable trigraphs (default)">, Alias<fno_trigraphs>;
+def _SLASH_Zc_twoPhase : CLFlag<"Zc:twoPhase">,
+  HelpText<"Enable two-phase name lookup in templates">,
+  Alias<fno_delayed_template_parsing>;
+def _SLASH_Zc_twoPhase_ : CLFlag<"Zc:twoPhase-">,
+  HelpText<"Disable two-phase name lookup in templates">,
+  Alias<fdelayed_template_parsing>;
 def _SLASH_Z7 : CLFlag<"Z7">,
   HelpText<"Enable CodeView debug information in object files">;
 def _SLASH_Zd : CLFlag<"Zd">,
@@ -210,10 +240,12 @@ def _SLASH_Fi : CLCompileJoined<"Fi">,
 def _SLASH_Fo : CLCompileJoined<"Fo">,
   HelpText<"Set output object file, or directory (ends in / or \\) (with /c)">,
   MetaVarName<"<file or directory>">;
+def _SLASH_Guard : CLJoined<"guard:">,
+  HelpText<"Enable Control Flow Guard with /guard:cf">;
 def _SLASH_GX : CLFlag<"GX">,
   HelpText<"Enable exception handling">;
 def _SLASH_GX_ : CLFlag<"GX-">,
-  HelpText<"Enable exception handling">;
+  HelpText<"Disable exception handling">;
 def _SLASH_imsvc : CLJoinedOrSeparate<"imsvc">,
   HelpText<"Add directory to system include search path, as if part of %INCLUDE%">,
   MetaVarName<"<dir>">;
@@ -280,6 +312,8 @@ def _SLASH_Gz : CLFlag<"Gz">,
   HelpText<"Set __stdcall as a default calling convention">;
 def _SLASH_Gv : CLFlag<"Gv">,
   HelpText<"Set __vectorcall as a default calling convention">;
+def _SLASH_Gregcall : CLFlag<"Gregcall">,
+  HelpText<"Set __regcall as a default calling convention">;
 
 // Ignored:
 
@@ -289,22 +323,27 @@ def _SLASH_cgthreads : CLIgnoredJoined<"cgthreads">;
 def _SLASH_d2FastFail : CLIgnoredFlag<"d2FastFail">;
 def _SLASH_d2Zi_PLUS : CLIgnoredFlag<"d2Zi+">;
 def _SLASH_errorReport : CLIgnoredJoined<"errorReport">;
-def _SLASH_Fd : CLIgnoredJoined<"Fd">;
 def _SLASH_FC : CLIgnoredFlag<"FC">;
-def _SLASH_FS : CLIgnoredFlag<"FS">, HelpText<"Force synchronous PDB writes">;
+def _SLASH_Fd : CLIgnoredJoined<"Fd">;
+def _SLASH_FS : CLIgnoredFlag<"FS">;
 def _SLASH_GF : CLIgnoredFlag<"GF">;
 def _SLASH_kernel_ : CLIgnoredFlag<"kernel-">;
 def _SLASH_nologo : CLIgnoredFlag<"nologo">;
 def _SLASH_Og : CLIgnoredFlag<"Og">;
 def _SLASH_openmp_ : CLIgnoredFlag<"openmp-">;
+def _SLASH_permissive_ : CLIgnoredFlag<"permissive-">;
 def _SLASH_RTC : CLIgnoredJoined<"RTC">;
 def _SLASH_sdl : CLIgnoredFlag<"sdl">;
 def _SLASH_sdl_ : CLIgnoredFlag<"sdl-">;
+def _SLASH_utf8 : CLIgnoredFlag<"utf-8">,
+  HelpText<"Set source and runtime encoding to UTF-8 (default)">;
 def _SLASH_w : CLIgnoredJoined<"w">;
+def _SLASH_Zc___cplusplus : CLIgnoredFlag<"Zc:__cplusplus">;
 def _SLASH_Zc_auto : CLIgnoredFlag<"Zc:auto">;
 def _SLASH_Zc_forScope : CLIgnoredFlag<"Zc:forScope">;
 def _SLASH_Zc_inline : CLIgnoredFlag<"Zc:inline">;
 def _SLASH_Zc_rvalueCast : CLIgnoredFlag<"Zc:rvalueCast">;
+def _SLASH_Zc_ternary : CLIgnoredFlag<"Zc:ternary">;
 def _SLASH_Zc_wchar_t : CLIgnoredFlag<"Zc:wchar_t">;
 def _SLASH_Zm : CLIgnoredJoined<"Zm">;
 def _SLASH_Zo : CLIgnoredFlag<"Zo">;
@@ -314,6 +353,8 @@ def _SLASH_Zo_ : CLIgnoredFlag<"Zo-">;
 // Unsupported:
 
 def _SLASH_AI : CLJoined<"AI">;
+def _SLASH_Bt : CLFlag<"Bt">;
+def _SLASH_Bt_plus : CLFlag<"Bt+">;
 def _SLASH_clr : CLJoined<"clr">;
 def _SLASH_doc : CLJoined<"doc">;
 def _SLASH_FA_joined : CLJoined<"FA">;
@@ -334,7 +375,6 @@ def _SLASH_GL_ : CLFlag<"GL-">;
 def _SLASH_Gm : CLFlag<"Gm">;
 def _SLASH_Gm_ : CLFlag<"Gm-">;
 def _SLASH_GT : CLFlag<"GT">;
-def _SLASH_Guard : CLJoined<"guard:">;
 def _SLASH_GZ : CLFlag<"GZ">;
 def _SLASH_H : CLFlag<"H">;
 def _SLASH_homeparams : CLFlag<"homeparams">;
@@ -352,7 +392,6 @@ def _SLASH_u : CLFlag<"u">;
 def _SLASH_V : CLFlag<"V">;
 def _SLASH_WL : CLFlag<"WL">;
 def _SLASH_Wp64 : CLFlag<"Wp64">;
-def _SLASH_X : CLFlag<"X">;
 def _SLASH_Yd : CLFlag<"Yd">;
 def _SLASH_Yl : CLJoined<"Yl">;
 def _SLASH_Za : CLFlag<"Za">;

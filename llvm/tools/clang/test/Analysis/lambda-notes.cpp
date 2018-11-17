@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++11 -fsyntax-only -analyze -analyzer-checker=core -analyzer-config inline-lambdas=true -analyzer-output plist -verify %s -o %t
+// RUN: %clang_analyze_cc1 -std=c++11 -analyzer-checker=core.DivideZero -analyzer-config inline-lambdas=true -analyzer-output plist -verify %s -o %t
 // RUN: FileCheck --input-file=%t %s
 
 
@@ -69,7 +69,7 @@ void diagnosticFromLambda() {
 // CHECK-NEXT:        </dict>
 // CHECK-NEXT:        <dict>
 // CHECK-NEXT:         <key>line</key><integer>12</integer>
-// CHECK-NEXT:         <key>col</key><integer>5</integer>
+// CHECK-NEXT:         <key>col</key><integer>3</integer>
 // CHECK-NEXT:         <key>file</key><integer>0</integer>
 // CHECK-NEXT:        </dict>
 // CHECK-NEXT:       </array>

@@ -27,14 +27,27 @@ def GNUAnonymousStruct : DiagGroup<"gnu-anonymous-struct">;
 def GNUAutoType : DiagGroup<"gnu-auto-type">;
 def ArrayBounds : DiagGroup<"array-bounds">;
 def ArrayBoundsPointerArithmetic : DiagGroup<"array-bounds-pointer-arithmetic">;
+def AutoDisableVptrSanitizer : DiagGroup<"auto-disable-vptr-sanitizer">;
 def Availability : DiagGroup<"availability">;
 def Section : DiagGroup<"section">;
 def AutoImport : DiagGroup<"auto-import">;
+def FrameworkHdrQuotedInclude : DiagGroup<"quoted-include-in-framework-header">;
+def FrameworkIncludePrivateFromPublic :
+  DiagGroup<"framework-include-private-from-public">;
+def FrameworkHdrAtImport : DiagGroup<"atimport-in-framework-header">;
 def CXX14BinaryLiteral : DiagGroup<"c++14-binary-literal">;
+def CXXPre14CompatBinaryLiteral : DiagGroup<"c++98-c++11-compat-binary-literal">;
 def GNUBinaryLiteral : DiagGroup<"gnu-binary-literal">;
+def BinaryLiteral : DiagGroup<"binary-literal", [CXX14BinaryLiteral,
+                                                 CXXPre14CompatBinaryLiteral,
+                                                 GNUBinaryLiteral]>;
 def GNUCompoundLiteralInitializer : DiagGroup<"gnu-compound-literal-initializer">;
 def BitFieldConstantConversion : DiagGroup<"bitfield-constant-conversion">;
+def BitFieldEnumConversion : DiagGroup<"bitfield-enum-conversion">;
 def BitFieldWidth : DiagGroup<"bitfield-width">;
+def CoroutineMissingUnhandledException :
+  DiagGroup<"coroutine-missing-unhandled-exception">;
+def Coroutine : DiagGroup<"coroutine", [CoroutineMissingUnhandledException]>;
 def ConstantConversion :
   DiagGroup<"constant-conversion", [ BitFieldConstantConversion ] >;
 def LiteralConversion : DiagGroup<"literal-conversion">;
@@ -56,13 +69,15 @@ def FloatConversion :
 def DoublePromotion : DiagGroup<"double-promotion">;
 def EnumTooLarge : DiagGroup<"enum-too-large">;
 def UnsupportedNan : DiagGroup<"unsupported-nan">;
+def UnsupportedAbs : DiagGroup<"unsupported-abs">;
 def UnsupportedCB : DiagGroup<"unsupported-cb">;
+def UnsupportedGPOpt : DiagGroup<"unsupported-gpopt">;
+def UnsupportedTargetOpt : DiagGroup<"unsupported-target-opt">;
 def NonLiteralNullConversion : DiagGroup<"non-literal-null-conversion">;
 def NullConversion : DiagGroup<"null-conversion">;
 def ImplicitConversionFloatingPointToBool :
   DiagGroup<"implicit-conversion-floating-point-to-bool">;
 def ObjCLiteralConversion : DiagGroup<"objc-literal-conversion">;
-def BadArrayNewLength : DiagGroup<"bad-array-new-length">;
 def MacroRedefined : DiagGroup<"macro-redefined">;
 def BuiltinMacroRedefined : DiagGroup<"builtin-macro-redefined">;
 def BuiltinRequiresHeader : DiagGroup<"builtin-requires-header">;
@@ -84,6 +99,7 @@ def GNUStringLiteralOperatorTemplate :
   DiagGroup<"gnu-string-literal-operator-template">;
 def UndefinedVarTemplate : DiagGroup<"undefined-var-template">;
 def UndefinedFuncTemplate : DiagGroup<"undefined-func-template">;
+def MissingNoEscape : DiagGroup<"missing-noescape">;
 
 def DeleteIncomplete : DiagGroup<"delete-incomplete">;
 def DeleteNonVirtualDtor : DiagGroup<"delete-non-virtual-dtor">;
@@ -95,25 +111,37 @@ def CXX11CompatDeprecatedWritableStr :
 def DeprecatedAttributes : DiagGroup<"deprecated-attributes">;
 def DeprecatedDeclarations : DiagGroup<"deprecated-declarations">;
 def UnavailableDeclarations : DiagGroup<"unavailable-declarations">;
-def PartialAvailability : DiagGroup<"partial-availability">;
-def UnguardedAvailability : DiagGroup<"unguarded-availability">;
+def UnguardedAvailabilityNew : DiagGroup<"unguarded-availability-new">;
+def UnguardedAvailability : DiagGroup<"unguarded-availability",
+                                      [UnguardedAvailabilityNew]>;
+// partial-availability is an alias of unguarded-availability.
+def : DiagGroup<"partial-availability", [UnguardedAvailability]>;
+def DeprecatedDynamicExceptionSpec
+    : DiagGroup<"deprecated-dynamic-exception-spec">;
 def DeprecatedImplementations :DiagGroup<"deprecated-implementations">;
 def DeprecatedIncrementBool : DiagGroup<"deprecated-increment-bool">;
 def DeprecatedRegister : DiagGroup<"deprecated-register">;
+def DeprecatedThisCapture : DiagGroup<"deprecated-this-capture">;
 def DeprecatedWritableStr : DiagGroup<"deprecated-writable-strings",
                                       [CXX11CompatDeprecatedWritableStr]>;
 // FIXME: Why is DeprecatedImplementations not in this group?
 def Deprecated : DiagGroup<"deprecated", [DeprecatedAttributes,
                                           DeprecatedDeclarations,
+                                          DeprecatedDynamicExceptionSpec,
                                           DeprecatedIncrementBool,
                                           DeprecatedRegister,
+                                          DeprecatedThisCapture,
                                           DeprecatedWritableStr]>,
                  DiagCategory<"Deprecations">;
+
+def DynamicExceptionSpec
+    : DiagGroup<"dynamic-exception-spec", [DeprecatedDynamicExceptionSpec]>;
 
 def LibLTO : DiagGroup<"liblto">;
 def : DiagGroup<"disabled-optimization">;
 def : DiagGroup<"discard-qual">;
-def : DiagGroup<"div-by-zero">;
+def DivZero : DiagGroup<"division-by-zero">;
+def : DiagGroup<"div-by-zero", [DivZero]>;
 
 def DocumentationHTML : DiagGroup<"documentation-html">;
 def DocumentationUnknownCommand : DiagGroup<"documentation-unknown-command">;
@@ -130,8 +158,10 @@ def Exceptions : DiagGroup<"exceptions">;
 def GNUEmptyInitializer : DiagGroup<"gnu-empty-initializer">;
 def GNUEmptyStruct : DiagGroup<"gnu-empty-struct">;
 def ExtraTokens : DiagGroup<"extra-tokens">;
+def CXX98CompatExtraSemi : DiagGroup<"c++98-compat-extra-semi">;
 def CXX11ExtraSemi : DiagGroup<"c++11-extra-semi">;
-def ExtraSemi : DiagGroup<"extra-semi", [CXX11ExtraSemi]>;
+def ExtraSemi : DiagGroup<"extra-semi", [CXX98CompatExtraSemi,
+                                         CXX11ExtraSemi]>;
 
 def GNUFlexibleArrayInitializer : DiagGroup<"gnu-flexible-array-initializer">;
 def GNUFlexibleArrayUnionMember : DiagGroup<"gnu-flexible-array-union-member">;
@@ -139,13 +169,24 @@ def GNUFoldingConstant : DiagGroup<"gnu-folding-constant">;
 def FormatExtraArgs : DiagGroup<"format-extra-args">;
 def FormatZeroLength : DiagGroup<"format-zero-length">;
 
+def InvalidIOSDeploymentTarget : DiagGroup<"invalid-ios-deployment-target">;
+
+def CXX17CompatMangling : DiagGroup<"c++17-compat-mangling">;
+def : DiagGroup<"c++1z-compat-mangling", [CXX17CompatMangling]>;
+// Name of this warning in GCC.
+def NoexceptType : DiagGroup<"noexcept-type", [CXX17CompatMangling]>;
+
 // Warnings for C++1y code which is not compatible with prior C++ standards.
 def CXXPre14Compat : DiagGroup<"c++98-c++11-compat">;
 def CXXPre14CompatPedantic : DiagGroup<"c++98-c++11-compat-pedantic",
-                                       [CXXPre14Compat]>;
-def CXXPre1zCompat : DiagGroup<"c++98-c++11-c++14-compat">;
-def CXXPre1zCompatPedantic : DiagGroup<"c++98-c++11-c++14-compat-pedantic",
-                                       [CXXPre1zCompat]>;
+                                       [CXXPre14Compat,
+                                        CXXPre14CompatBinaryLiteral]>;
+def CXXPre17Compat : DiagGroup<"c++98-c++11-c++14-compat">;
+def CXXPre17CompatPedantic : DiagGroup<"c++98-c++11-c++14-compat-pedantic",
+                                       [CXXPre17Compat]>;
+def CXXPre2aCompat : DiagGroup<"c++98-c++11-c++14-c++17-compat">;
+def CXXPre2aCompatPedantic : DiagGroup<"c++98-c++11-c++14-c++17-compat-pedantic",
+                                       [CXXPre2aCompat]>;
 
 def CXX98CompatBindToTemporaryCopy :
   DiagGroup<"c++98-compat-bind-to-temporary-copy">;
@@ -158,16 +199,21 @@ def CXX98Compat : DiagGroup<"c++98-compat",
                             [CXX98CompatLocalTypeTemplateArgs,
                              CXX98CompatUnnamedTypeTemplateArgs,
                              CXXPre14Compat,
-                             CXXPre1zCompat]>;
+                             CXXPre17Compat,
+                             CXXPre2aCompat]>;
 // Warnings for C++11 features which are Extensions in C++98 mode.
 def CXX98CompatPedantic : DiagGroup<"c++98-compat-pedantic",
                                     [CXX98Compat,
                                      CXX98CompatBindToTemporaryCopy,
+                                     CXX98CompatExtraSemi,
                                      CXXPre14CompatPedantic,
-                                     CXXPre1zCompatPedantic]>;
+                                     CXXPre17CompatPedantic,
+                                     CXXPre2aCompatPedantic]>;
 
 def CXX11Narrowing : DiagGroup<"c++11-narrowing">;
 
+def CXX11WarnOverrideDestructor :
+  DiagGroup<"inconsistent-missing-destructor-override">;
 def CXX11WarnOverrideMethod : DiagGroup<"inconsistent-missing-override">;
 
 // Original name of this warning in Clang
@@ -187,21 +233,35 @@ def CXX11Compat : DiagGroup<"c++11-compat",
                              CXX11CompatReservedUserDefinedLiteral,
                              CXX11CompatDeprecatedWritableStr,
                              CXXPre14Compat,
-                             CXXPre1zCompat]>;
+                             CXXPre17Compat,
+                             CXXPre2aCompat]>;
 def : DiagGroup<"c++0x-compat", [CXX11Compat]>;
 def CXX11CompatPedantic : DiagGroup<"c++11-compat-pedantic",
-                                    [CXXPre14CompatPedantic,
-                                     CXXPre1zCompatPedantic]>;
+                                    [CXX11Compat,
+                                     CXXPre14CompatPedantic,
+                                     CXXPre17CompatPedantic,
+                                     CXXPre2aCompatPedantic]>;
 
-def CXX14Compat : DiagGroup<"c++14-compat", [CXXPre1zCompat]>;
+def CXX14Compat : DiagGroup<"c++14-compat", [CXXPre17Compat,
+                                             CXXPre2aCompat]>;
 def CXX14CompatPedantic : DiagGroup<"c++14-compat-pedantic",
-                                    [CXXPre1zCompatPedantic]>;
+                                    [CXX14Compat,
+                                     CXXPre17CompatPedantic,
+                                     CXXPre2aCompatPedantic]>;
 
-def CXX1zCompat : DiagGroup<"c++1z-compat", [DeprecatedRegister,
-                                             DeprecatedIncrementBool]>;
+def CXX17Compat : DiagGroup<"c++17-compat", [DeprecatedRegister,
+                                             DeprecatedIncrementBool,
+                                             CXX17CompatMangling,
+                                             CXXPre2aCompat]>;
+def CXX17CompatPedantic : DiagGroup<"c++17-compat-pedantic",
+                                    [CXX17Compat,
+                                     CXXPre2aCompatPedantic]>;
+def : DiagGroup<"c++1z-compat", [CXX17Compat]>;
 
-def : DiagGroup<"effc++">;
-def DivZero : DiagGroup<"division-by-zero">;
+def CXX2aCompat : DiagGroup<"c++2a-compat">;
+def CXX2aCompatPedantic : DiagGroup<"c++2a-compat-pedantic",
+                                    [CXX2aCompat]>;
+
 def ExitTimeDestructors : DiagGroup<"exit-time-destructors">;
 def FlexibleArrayExtensions : DiagGroup<"flexible-array-extensions">;
 def FourByteMultiChar : DiagGroup<"four-char-constants">;
@@ -213,6 +273,11 @@ def ShiftOpParentheses: DiagGroup<"shift-op-parentheses">;
 def OverloadedShiftOpParentheses: DiagGroup<"overloaded-shift-op-parentheses">;
 def DanglingElse: DiagGroup<"dangling-else">;
 def DanglingField : DiagGroup<"dangling-field">;
+def DanglingInitializerList : DiagGroup<"dangling-initializer-list">;
+def ReturnStackAddress : DiagGroup<"return-stack-address">;
+def Dangling : DiagGroup<"dangling", [DanglingField,
+                                      DanglingInitializerList,
+                                      ReturnStackAddress]>;
 def DistributedObjectModifiers : DiagGroup<"distributed-object-modifiers">;
 def ExpansionToDefined : DiagGroup<"expansion-to-defined">;
 def FlagEnum : DiagGroup<"flag-enum">;
@@ -223,18 +288,24 @@ def IgnoredQualifiers : DiagGroup<"ignored-qualifiers">;
 def : DiagGroup<"import">;
 def GNUIncludeNext : DiagGroup<"gnu-include-next">;
 def IncompatibleMSStruct : DiagGroup<"incompatible-ms-struct">;
-def IncompatiblePointerTypesDiscardsQualifiers 
+def IncompatiblePointerTypesDiscardsQualifiers
   : DiagGroup<"incompatible-pointer-types-discards-qualifiers">;
+def IncompatibleFunctionPointerTypes
+  : DiagGroup<"incompatible-function-pointer-types">;
 def IncompatiblePointerTypes
   : DiagGroup<"incompatible-pointer-types",
-    [IncompatiblePointerTypesDiscardsQualifiers]>;
+    [IncompatiblePointerTypesDiscardsQualifiers,
+     IncompatibleFunctionPointerTypes]>;
 def IncompleteUmbrella : DiagGroup<"incomplete-umbrella">;
+def IncompleteFrameworkModuleDeclaration
+  : DiagGroup<"incomplete-framework-module-declaration">;
 def NonModularIncludeInFrameworkModule
   : DiagGroup<"non-modular-include-in-framework-module">;
 def NonModularIncludeInModule : DiagGroup<"non-modular-include-in-module",
                                           [NonModularIncludeInFrameworkModule]>;
 def IncompleteModule : DiagGroup<"incomplete-module",
     [IncompleteUmbrella, NonModularIncludeInModule]>;
+def PrivateModule : DiagGroup<"private-module">;
 
 def CXX11InlineNamespace : DiagGroup<"c++11-inline-namespace">;
 def InvalidNoreturn : DiagGroup<"invalid-noreturn">;
@@ -254,6 +325,7 @@ def LoopAnalysis : DiagGroup<"loop-analysis", [ForLoopAnalysis,
 def MalformedWarningCheck : DiagGroup<"malformed-warning-check">;
 def Main : DiagGroup<"main">;
 def MainReturnType : DiagGroup<"main-return-type">;
+def MaxUnsignedZero : DiagGroup<"max-unsigned-zero">;
 def MissingBraces : DiagGroup<"missing-braces">;
 def MissingDeclarations: DiagGroup<"missing-declarations">;
 def : DiagGroup<"missing-format-attribute">;
@@ -275,8 +347,11 @@ def ModuleFileExtension : DiagGroup<"module-file-extension">;
 def NewlineEOF : DiagGroup<"newline-eof">;
 def Nullability : DiagGroup<"nullability">;
 def NullabilityDeclSpec : DiagGroup<"nullability-declspec">;
+def NullabilityInferredOnNestedType : DiagGroup<"nullability-inferred-on-nested-type">;
 def NullableToNonNullConversion : DiagGroup<"nullable-to-nonnull-conversion">;
-def NullabilityCompleteness : DiagGroup<"nullability-completeness">;
+def NullabilityCompletenessOnArrays : DiagGroup<"nullability-completeness-on-arrays">;
+def NullabilityCompleteness : DiagGroup<"nullability-completeness",
+                                        [NullabilityCompletenessOnArrays]>;
 def NullArithmetic : DiagGroup<"null-arithmetic">;
 def NullCharacter : DiagGroup<"null-character">;
 def NullDereference : DiagGroup<"null-dereference">;
@@ -286,6 +361,8 @@ def NonPODVarargs : DiagGroup<"non-pod-varargs">;
 def ClassVarargs : DiagGroup<"class-varargs", [NonPODVarargs]>;
 def : DiagGroup<"nonportable-cfstrings">;
 def NonVirtualDtor : DiagGroup<"non-virtual-dtor">;
+def NullPointerArithmetic : DiagGroup<"null-pointer-arithmetic">;
+def : DiagGroup<"effc++", [NonVirtualDtor]>;
 def OveralignedType : DiagGroup<"over-aligned">;
 def OldStyleCast : DiagGroup<"old-style-cast">;
 def : DiagGroup<"old-style-definition">;
@@ -313,11 +390,17 @@ def ObjCRootClass : DiagGroup<"objc-root-class">;
 def ObjCPointerIntrospectPerformSelector : DiagGroup<"deprecated-objc-pointer-introspection-performSelector">;
 def ObjCPointerIntrospect : DiagGroup<"deprecated-objc-pointer-introspection", [ObjCPointerIntrospectPerformSelector]>;
 def ObjCMultipleMethodNames : DiagGroup<"objc-multiple-method-names">;
+def ObjCFlexibleArray : DiagGroup<"objc-flexible-array">;
+def OpenCLUnsupportedRGBA: DiagGroup<"opencl-unsupported-rgba">;
 def DeprecatedObjCIsaUsage : DiagGroup<"deprecated-objc-isa-usage">;
 def ExplicitInitializeCall : DiagGroup<"explicit-initialize-call">;
 def Packed : DiagGroup<"packed">;
 def Padded : DiagGroup<"padded">;
+
 def PessimizingMove : DiagGroup<"pessimizing-move">;
+def ReturnStdMoveInCXX11 : DiagGroup<"return-std-move-in-c++11">;
+def ReturnStdMove : DiagGroup<"return-std-move">;
+
 def PointerArith : DiagGroup<"pointer-arith">;
 def PoundWarning : DiagGroup<"#warnings">;
 def PoundPragmaMessage : DiagGroup<"#pragma-messages">,
@@ -328,26 +411,31 @@ def RedeclaredClassMember : DiagGroup<"redeclared-class-member">;
 def GNURedeclaredEnum : DiagGroup<"gnu-redeclared-enum">;
 def RedundantMove : DiagGroup<"redundant-move">;
 def Register : DiagGroup<"register", [DeprecatedRegister]>;
-def ReturnStackAddress : DiagGroup<"return-stack-address">;
 def ReturnTypeCLinkage : DiagGroup<"return-type-c-linkage">;
 def ReturnType : DiagGroup<"return-type", [ReturnTypeCLinkage]>;
 def BindToTemporaryCopy : DiagGroup<"bind-to-temporary-copy",
                                     [CXX98CompatBindToTemporaryCopy]>;
 def SelfAssignmentField : DiagGroup<"self-assign-field">;
-def SelfAssignment : DiagGroup<"self-assign", [SelfAssignmentField]>;
+def SelfAssignmentOverloaded : DiagGroup<"self-assign-overloaded">;
+def SelfAssignment : DiagGroup<"self-assign", [SelfAssignmentOverloaded, SelfAssignmentField]>;
 def SelfMove : DiagGroup<"self-move">;
 def SemiBeforeMethodBody : DiagGroup<"semicolon-before-method-body">;
 def Sentinel : DiagGroup<"sentinel">;
 def MissingMethodReturnType : DiagGroup<"missing-method-return-type">;
 
+def ShadowField : DiagGroup<"shadow-field">;
 def ShadowFieldInConstructorModified : DiagGroup<"shadow-field-in-constructor-modified">;
 def ShadowFieldInConstructor : DiagGroup<"shadow-field-in-constructor",
                                          [ShadowFieldInConstructorModified]>;
+def ShadowIvar : DiagGroup<"shadow-ivar">;
+def ShadowUncapturedLocal : DiagGroup<"shadow-uncaptured-local">;
 
 // -Wshadow-all is a catch-all for all shadowing. -Wshadow is just the
 // shadowing that we think is unsafe.
-def Shadow : DiagGroup<"shadow", [ShadowFieldInConstructorModified]>;
-def ShadowAll : DiagGroup<"shadow-all", [Shadow, ShadowFieldInConstructor]>;
+def Shadow : DiagGroup<"shadow", [ShadowFieldInConstructorModified,
+                                  ShadowIvar]>;
+def ShadowAll : DiagGroup<"shadow-all", [Shadow, ShadowFieldInConstructor,
+                                         ShadowUncapturedLocal, ShadowField]>;
 
 def Shorten64To32 : DiagGroup<"shorten-64-to-32">;
 def : DiagGroup<"sign-promo">;
@@ -358,6 +446,13 @@ def : DiagGroup<"synth">;
 def SizeofArrayArgument : DiagGroup<"sizeof-array-argument">;
 def SizeofArrayDecay : DiagGroup<"sizeof-array-decay">;
 def SizeofPointerMemaccess : DiagGroup<"sizeof-pointer-memaccess">;
+def MemsetTransposedArgs : DiagGroup<"memset-transposed-args">;
+def DynamicClassMemaccess : DiagGroup<"dynamic-class-memaccess">;
+def NonTrivialMemaccess : DiagGroup<"nontrivial-memaccess">;
+def SuspiciousBzero : DiagGroup<"suspicious-bzero">;
+def SuspiciousMemaccess : DiagGroup<"suspicious-memaccess",
+  [SizeofPointerMemaccess, DynamicClassMemaccess,
+   NonTrivialMemaccess, MemsetTransposedArgs, SuspiciousBzero]>;
 def StaticInInline : DiagGroup<"static-in-inline">;
 def StaticLocalInInline : DiagGroup<"static-local-in-inline">;
 def GNUStaticFloatInit : DiagGroup<"gnu-static-float-init">;
@@ -367,12 +462,21 @@ def StringCompare : DiagGroup<"string-compare">;
 def StringPlusInt : DiagGroup<"string-plus-int">;
 def StringPlusChar : DiagGroup<"string-plus-char">;
 def StrncatSize : DiagGroup<"strncat-size">;
+def TautologicalTypeLimitCompare : DiagGroup<"tautological-type-limit-compare">;
+def TautologicalUnsignedZeroCompare : DiagGroup<"tautological-unsigned-zero-compare">;
+def TautologicalUnsignedEnumZeroCompare : DiagGroup<"tautological-unsigned-enum-zero-compare">;
+def TautologicalInRangeCompare : DiagGroup<"tautological-constant-in-range-compare",
+                                           [TautologicalTypeLimitCompare,
+                                            TautologicalUnsignedZeroCompare,
+                                            TautologicalUnsignedEnumZeroCompare]>;
 def TautologicalOutOfRangeCompare : DiagGroup<"tautological-constant-out-of-range-compare">;
+def TautologicalConstantCompare : DiagGroup<"tautological-constant-compare",
+                                            [TautologicalOutOfRangeCompare]>;
 def TautologicalPointerCompare : DiagGroup<"tautological-pointer-compare">;
 def TautologicalOverlapCompare : DiagGroup<"tautological-overlap-compare">;
 def TautologicalUndefinedCompare : DiagGroup<"tautological-undefined-compare">;
 def TautologicalCompare : DiagGroup<"tautological-compare",
-                                    [TautologicalOutOfRangeCompare,
+                                    [TautologicalConstantCompare,
                                      TautologicalPointerCompare,
                                      TautologicalOverlapCompare,
                                      TautologicalUndefinedCompare]>;
@@ -416,6 +520,8 @@ def CoveredSwitchDefault : DiagGroup<"covered-switch-default">;
 def SwitchBool     : DiagGroup<"switch-bool">;
 def SwitchEnum     : DiagGroup<"switch-enum">;
 def Switch         : DiagGroup<"switch">;
+def EnumCompareSwitch : DiagGroup<"enum-compare-switch">;
+def EnumCompare       : DiagGroup<"enum-compare", [EnumCompareSwitch]>;
 def ImplicitFallthroughPerFunction :
   DiagGroup<"implicit-fallthrough-per-function">;
 def ImplicitFallthrough  : DiagGroup<"implicit-fallthrough",
@@ -432,11 +538,24 @@ def UninitializedSometimes : DiagGroup<"sometimes-uninitialized">;
 def UninitializedStaticSelfInit : DiagGroup<"static-self-init">;
 def Uninitialized  : DiagGroup<"uninitialized", [UninitializedSometimes,
                                                  UninitializedStaticSelfInit]>;
+def IgnoredPragmaIntrinsic : DiagGroup<"ignored-pragma-intrinsic">;
+// #pragma optimize is often used to avoid to work around MSVC codegen bugs or
+// to disable inlining. It's not completely clear what alternative to suggest
+// (#pragma clang optimize, noinline) so suggest nothing for now.
+def IgnoredPragmaOptimize : DiagGroup<"ignored-pragma-optimize">;
 def UnknownPragmas : DiagGroup<"unknown-pragmas">;
-def IgnoredPragmas : DiagGroup<"ignored-pragmas">;
-def Pragmas : DiagGroup<"pragmas", [UnknownPragmas, IgnoredPragmas]>;
+def IgnoredPragmas : DiagGroup<"ignored-pragmas",
+    [IgnoredPragmaIntrinsic, IgnoredPragmaOptimize]>;
+def PragmaClangAttribute : DiagGroup<"pragma-clang-attribute">;
+def PragmaPackSuspiciousInclude : DiagGroup<"pragma-pack-suspicious-include">;
+def PragmaPack : DiagGroup<"pragma-pack", [PragmaPackSuspiciousInclude]>;
+def Pragmas : DiagGroup<"pragmas", [UnknownPragmas, IgnoredPragmas,
+                                    PragmaClangAttribute, PragmaPack]>;
 def UnknownWarningOption : DiagGroup<"unknown-warning-option">;
 def NSobjectAttribute : DiagGroup<"NSObject-attribute">;
+def NSConsumedMismatch : DiagGroup<"nsconsumed-mismatch">;
+def NSReturnsMismatch : DiagGroup<"nsreturns-mismatch">;
+
 def IndependentClassAttribute : DiagGroup<"IndependentClass-attribute">;
 def UnknownAttributes : DiagGroup<"unknown-attributes">;
 def IgnoredAttributes : DiagGroup<"ignored-attributes">;
@@ -457,9 +576,11 @@ def UnneededInternalDecl : DiagGroup<"unneeded-internal-declaration">;
 def UnneededMemberFunction : DiagGroup<"unneeded-member-function">;
 def UnusedPrivateField : DiagGroup<"unused-private-field">;
 def UnusedFunction : DiagGroup<"unused-function", [UnneededInternalDecl]>;
+def UnusedTemplate : DiagGroup<"unused-template", [UnneededInternalDecl]>;
 def UnusedMemberFunction : DiagGroup<"unused-member-function",
                                      [UnneededMemberFunction]>;
 def UnusedLabel : DiagGroup<"unused-label">;
+def UnusedLambdaCapture : DiagGroup<"unused-lambda-capture">;
 def UnusedParameter : DiagGroup<"unused-parameter">;
 def UnusedResult : DiagGroup<"unused-result">;
 def PotentiallyEvaluatedExpression : DiagGroup<"potentially-evaluated-expression">;
@@ -475,6 +596,7 @@ def UnusedPropertyIvar :  DiagGroup<"unused-property-ivar">;
 def UnusedGetterReturnValue : DiagGroup<"unused-getter-return-value">;
 def UsedButMarkedUnused : DiagGroup<"used-but-marked-unused">;
 def UserDefinedLiterals : DiagGroup<"user-defined-literals">;
+def UserDefinedWarnings : DiagGroup<"user-defined-warnings">;
 def Reorder : DiagGroup<"reorder">;
 def UndeclaredSelector : DiagGroup<"undeclared-selector">;
 def ImplicitAtomic : DiagGroup<"implicit-atomic-properties">;
@@ -491,6 +613,7 @@ def AutomaticReferenceCounting : DiagGroup<"arc",
 def ARCRepeatedUseOfWeakMaybe : DiagGroup<"arc-maybe-repeated-use-of-weak">;
 def ARCRepeatedUseOfWeak : DiagGroup<"arc-repeated-use-of-weak",
                                      [ARCRepeatedUseOfWeakMaybe]>;
+def BlockCaptureAutoReleasing : DiagGroup<"block-capture-autoreleasing">;
 def ObjCBridge : DiagGroup<"bridge-cast">;
 
 def DeallocInCategory:DiagGroup<"dealloc-in-category">;
@@ -530,6 +653,7 @@ def GCCWriteStrings : DiagGroup<"write-strings" , [WritableStrings]>;
 def CharSubscript : DiagGroup<"char-subscripts">;
 def LargeByValueCopy : DiagGroup<"large-by-value-copy">;
 def DuplicateArgDecl : DiagGroup<"duplicate-method-arg">;
+def SignedEnumBitfield : DiagGroup<"signed-enum-bitfield">;
 
 // Unreachable code warning groups.
 //
@@ -579,6 +703,7 @@ def Conversion : DiagGroup<"conversion",
                            [BoolConversion,
                             ConstantConversion,
                             EnumConversion,
+                            BitFieldEnumConversion,
                             FloatConversion,
                             Shorten64To32,
                             IntConversion,
@@ -593,9 +718,11 @@ def Conversion : DiagGroup<"conversion",
 def Unused : DiagGroup<"unused",
                        [UnusedArgument, UnusedFunction, UnusedLabel,
                         // UnusedParameter, (matches GCC's behavior)
+                        // UnusedTemplate, (clean-up libc++ before enabling)
                         // UnusedMemberFunction, (clean-up llvm before enabling)
-                        UnusedPrivateField, UnusedLocalTypedef,
-                        UnusedValue, UnusedVariable, UnusedPropertyIvar]>,
+                        UnusedPrivateField, UnusedLambdaCapture,
+                        UnusedLocalTypedef, UnusedValue, UnusedVariable,
+                        UnusedPropertyIvar]>,
                         DiagCategory<"Unused Entity Issue">;
 
 // Format settings.
@@ -614,11 +741,18 @@ def Format2 : DiagGroup<"format=2",
 
 def TypeSafety : DiagGroup<"type-safety">;
 
+def IncompatibleExceptionSpec : DiagGroup<"incompatible-exception-spec">;
+
 def IntToVoidPointerCast : DiagGroup<"int-to-void-pointer-cast">;
 def IntToPointerCast : DiagGroup<"int-to-pointer-cast",
                                  [IntToVoidPointerCast]>;
 
-def Move : DiagGroup<"move", [PessimizingMove, RedundantMove, SelfMove]>;
+def Move : DiagGroup<"move", [
+    PessimizingMove,
+    RedundantMove,
+    ReturnStdMove,
+    SelfMove
+  ]>;
 
 def Extra : DiagGroup<"extra", [
     MissingFieldInitializers,
@@ -627,7 +761,8 @@ def Extra : DiagGroup<"extra", [
     SemiBeforeMethodBody,
     MissingMethodReturnType,
     SignCompare,
-    UnusedParameter
+    UnusedParameter,
+    NullPointerArithmetic
   ]>;
 
 def Most : DiagGroup<"most", [
@@ -656,20 +791,22 @@ def Most : DiagGroup<"most", [
     VolatileRegisterVar,
     ObjCMissingSuperCalls,
     ObjCDesignatedInit,
+    ObjCFlexibleArray,
     OverloadedVirtual,
     PrivateExtern,
     SelTypeCast,
-    ExternCCompat
+    ExternCCompat,
+    UserDefinedWarnings
  ]>;
 
-// Thread Safety warnings 
+// Thread Safety warnings
 def ThreadSafetyAttributes : DiagGroup<"thread-safety-attributes">;
 def ThreadSafetyAnalysis   : DiagGroup<"thread-safety-analysis">;
 def ThreadSafetyPrecise    : DiagGroup<"thread-safety-precise">;
 def ThreadSafetyReference  : DiagGroup<"thread-safety-reference">;
 def ThreadSafetyNegative   : DiagGroup<"thread-safety-negative">;
 def ThreadSafety : DiagGroup<"thread-safety",
-                             [ThreadSafetyAttributes, 
+                             [ThreadSafetyAttributes,
                               ThreadSafetyAnalysis,
                               ThreadSafetyPrecise,
                               ThreadSafetyReference]>;
@@ -693,6 +830,7 @@ def Pedantic : DiagGroup<"pedantic">;
 // Aliases.
 def : DiagGroup<"", [Extra]>;                   // -W = -Wextra
 def : DiagGroup<"endif-labels", [ExtraTokens]>; // -Wendif-labels=-Wextra-tokens
+def : DiagGroup<"cpp", [PoundWarning]>;         // -Wcpp = -W#warnings
 def : DiagGroup<"comments", [Comment]>;         // -Wcomments = -Wcomment
 def : DiagGroup<"conversion-null",
                 [NullConversion]>; // -Wconversion-null = -Wnull-conversion
@@ -719,12 +857,17 @@ def CXX11 : DiagGroup<"c++11-extensions", [CXX11ExtraSemi, CXX11InlineNamespace,
 // earlier C++ versions.
 def CXX14 : DiagGroup<"c++14-extensions", [CXX14BinaryLiteral]>;
 
-// A warning group for warnings about using C++1z features as extensions in
+// A warning group for warnings about using C++17 features as extensions in
 // earlier C++ versions.
-def CXX1z : DiagGroup<"c++1z-extensions">;
+def CXX17 : DiagGroup<"c++17-extensions">;
+
+// A warning group for warnings about using C++2a features as extensions in
+// earlier C++ versions.
+def CXX2a : DiagGroup<"c++2a-extensions">;
 
 def : DiagGroup<"c++0x-extensions", [CXX11]>;
 def : DiagGroup<"c++1y-extensions", [CXX14]>;
+def : DiagGroup<"c++1z-extensions", [CXX17]>;
 
 def DelegatingCtorCycles :
   DiagGroup<"delegating-ctor-cycles">;
@@ -787,6 +930,7 @@ def MicrosoftVoidPseudoDtor : DiagGroup<"microsoft-void-pseudo-dtor">;
 def MicrosoftAnonTag : DiagGroup<"microsoft-anon-tag">;
 def MicrosoftCommentPaste : DiagGroup<"microsoft-comment-paste">;
 def MicrosoftEndOfFile : DiagGroup<"microsoft-end-of-file">;
+def MicrosoftInaccessibleBase : DiagGroup<"microsoft-inaccessible-base">;
 // Aliases.
 def : DiagGroup<"msvc-include", [MicrosoftInclude]>;
                 // -Wmsvc-include = -Wmicrosoft-include
@@ -830,8 +974,9 @@ def ObjCLiteralComparison : DiagGroup<"objc-literal-compare", [
 
 // Inline ASM warnings.
 def ASMOperandWidths : DiagGroup<"asm-operand-widths">;
+def ASMIgnoredQualifier : DiagGroup<"asm-ignored-qualifier">;
 def ASM : DiagGroup<"asm", [
-    ASMOperandWidths
+    ASMOperandWidths, ASMIgnoredQualifier
   ]>;
 
 // OpenMP warnings.
@@ -851,10 +996,11 @@ def BackendOptimizationRemarkAnalysis : DiagGroup<"pass-analysis">;
 def BackendOptimizationFailure : DiagGroup<"pass-failed">;
 
 // Instrumentation based profiling warnings.
+def ProfileInstrMissing : DiagGroup<"profile-instr-missing">;
 def ProfileInstrOutOfDate : DiagGroup<"profile-instr-out-of-date">;
 def ProfileInstrUnprofiled : DiagGroup<"profile-instr-unprofiled">;
 
-// AddressSanitizer frontent instrumentation remarks.
+// AddressSanitizer frontend instrumentation remarks.
 def SanitizeAddressRemarks : DiagGroup<"sanitize-address">;
 
 // Issues with serialized diagnostics.
@@ -872,3 +1018,14 @@ def InvalidOrNonExistentDirectory : DiagGroup<"invalid-or-nonexistent-directory"
 def OptionIgnored : DiagGroup<"option-ignored">;
 
 def UnknownArgument : DiagGroup<"unknown-argument">;
+
+// A warning group for warnings about code that clang accepts when
+// compiling OpenCL C/C++ but which is not compatible with the SPIR spec.
+def SpirCompat : DiagGroup<"spir-compat">;
+
+// Warning for the experimental-isel options.
+def ExperimentalISel : DiagGroup<"experimental-isel">;
+
+// A warning group specifically for warnings related to function
+// multiversioning.
+def FunctionMultiVersioning : DiagGroup<"function-multiversion">;

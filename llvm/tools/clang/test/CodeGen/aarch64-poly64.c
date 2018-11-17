@@ -1,5 +1,5 @@
 // RUN: %clang_cc1 -triple arm64-none-linux-gnu -target-feature +neon \
-// RUN:  -ffp-contract=fast -emit-llvm -o - %s | opt -S -mem2reg \
+// RUN:  -ffp-contract=fast -disable-O0-optnone -emit-llvm -o - %s | opt -S -mem2reg \
 // RUN:  | FileCheck %s
 
 // Test new aarch64 intrinsics with poly64
@@ -23,11 +23,7 @@ uint64x2_t test_vceqq_p64(poly64x2_t a, poly64x2_t b) {
 }
 
 // CHECK-LABEL: define <1 x i64> @test_vtst_p64(<1 x i64> %a, <1 x i64> %b) #0 {
-// CHECK:   [[TMP0:%.*]] = bitcast <1 x i64> %a to <8 x i8>
-// CHECK:   [[TMP1:%.*]] = bitcast <1 x i64> %b to <8 x i8>
-// CHECK:   [[TMP2:%.*]] = bitcast <8 x i8> [[TMP0]] to <1 x i64>
-// CHECK:   [[TMP3:%.*]] = bitcast <8 x i8> [[TMP1]] to <1 x i64>
-// CHECK:   [[TMP4:%.*]] = and <1 x i64> [[TMP2]], [[TMP3]]
+// CHECK:   [[TMP4:%.*]] = and <1 x i64> %a, %b
 // CHECK:   [[TMP5:%.*]] = icmp ne <1 x i64> [[TMP4]], zeroinitializer
 // CHECK:   [[VTST_I:%.*]] = sext <1 x i1> [[TMP5]] to <1 x i64>
 // CHECK:   ret <1 x i64> [[VTST_I]]
@@ -36,11 +32,7 @@ uint64x1_t test_vtst_p64(poly64x1_t a, poly64x1_t b) {
 }
 
 // CHECK-LABEL: define <2 x i64> @test_vtstq_p64(<2 x i64> %a, <2 x i64> %b) #0 {
-// CHECK:   [[TMP0:%.*]] = bitcast <2 x i64> %a to <16 x i8>
-// CHECK:   [[TMP1:%.*]] = bitcast <2 x i64> %b to <16 x i8>
-// CHECK:   [[TMP2:%.*]] = bitcast <16 x i8> [[TMP0]] to <2 x i64>
-// CHECK:   [[TMP3:%.*]] = bitcast <16 x i8> [[TMP1]] to <2 x i64>
-// CHECK:   [[TMP4:%.*]] = and <2 x i64> [[TMP2]], [[TMP3]]
+// CHECK:   [[TMP4:%.*]] = and <2 x i64> %a, %b
 // CHECK:   [[TMP5:%.*]] = icmp ne <2 x i64> [[TMP4]], zeroinitializer
 // CHECK:   [[VTST_I:%.*]] = sext <2 x i1> [[TMP5]] to <2 x i64>
 // CHECK:   ret <2 x i64> [[VTST_I]]
@@ -49,15 +41,9 @@ uint64x2_t test_vtstq_p64(poly64x2_t a, poly64x2_t b) {
 }
 
 // CHECK-LABEL: define <1 x i64> @test_vbsl_p64(<1 x i64> %a, <1 x i64> %b, <1 x i64> %c) #0 {
-// CHECK:   [[TMP0:%.*]] = bitcast <1 x i64> %a to <8 x i8>
-// CHECK:   [[TMP1:%.*]] = bitcast <1 x i64> %b to <8 x i8>
-// CHECK:   [[TMP2:%.*]] = bitcast <1 x i64> %c to <8 x i8>
-// CHECK:   [[VBSL_I:%.*]] = bitcast <8 x i8> [[TMP0]] to <1 x i64>
-// CHECK:   [[VBSL1_I:%.*]] = bitcast <8 x i8> [[TMP1]] to <1 x i64>
-// CHECK:   [[VBSL2_I:%.*]] = bitcast <8 x i8> [[TMP2]] to <1 x i64>
-// CHECK:   [[VBSL3_I:%.*]] = and <1 x i64> [[VBSL_I]], [[VBSL1_I]]
-// CHECK:   [[TMP3:%.*]] = xor <1 x i64> [[VBSL_I]], <i64 -1>
-// CHECK:   [[VBSL4_I:%.*]] = and <1 x i64> [[TMP3]], [[VBSL2_I]]
+// CHECK:   [[VBSL3_I:%.*]] = and <1 x i64> %a, %b
+// CHECK:   [[TMP3:%.*]] = xor <1 x i64> %a, <i64 -1>
+// CHECK:   [[VBSL4_I:%.*]] = and <1 x i64> [[TMP3]], %c
 // CHECK:   [[VBSL5_I:%.*]] = or <1 x i64> [[VBSL3_I]], [[VBSL4_I]]
 // CHECK:   ret <1 x i64> [[VBSL5_I]]
 poly64x1_t test_vbsl_p64(poly64x1_t a, poly64x1_t b, poly64x1_t c) {
@@ -65,15 +51,9 @@ poly64x1_t test_vbsl_p64(poly64x1_t a, poly64x1_t b, poly64x1_t c) {
 }
 
 // CHECK-LABEL: define <2 x i64> @test_vbslq_p64(<2 x i64> %a, <2 x i64> %b, <2 x i64> %c) #0 {
-// CHECK:   [[TMP0:%.*]] = bitcast <2 x i64> %a to <16 x i8>
-// CHECK:   [[TMP1:%.*]] = bitcast <2 x i64> %b to <16 x i8>
-// CHECK:   [[TMP2:%.*]] = bitcast <2 x i64> %c to <16 x i8>
-// CHECK:   [[VBSL_I:%.*]] = bitcast <16 x i8> [[TMP0]] to <2 x i64>
-// CHECK:   [[VBSL1_I:%.*]] = bitcast <16 x i8> [[TMP1]] to <2 x i64>
-// CHECK:   [[VBSL2_I:%.*]] = bitcast <16 x i8> [[TMP2]] to <2 x i64>
-// CHECK:   [[VBSL3_I:%.*]] = and <2 x i64> [[VBSL_I]], [[VBSL1_I]]
-// CHECK:   [[TMP3:%.*]] = xor <2 x i64> [[VBSL_I]], <i64 -1, i64 -1>
-// CHECK:   [[VBSL4_I:%.*]] = and <2 x i64> [[TMP3]], [[VBSL2_I]]
+// CHECK:   [[VBSL3_I:%.*]] = and <2 x i64> %a, %b
+// CHECK:   [[TMP3:%.*]] = xor <2 x i64> %a, <i64 -1, i64 -1>
+// CHECK:   [[VBSL4_I:%.*]] = and <2 x i64> [[TMP3]], %c
 // CHECK:   [[VBSL5_I:%.*]] = or <2 x i64> [[VBSL3_I]], [[VBSL4_I]]
 // CHECK:   ret <2 x i64> [[VBSL5_I]]
 poly64x2_t test_vbslq_p64(poly64x2_t a, poly64x2_t b, poly64x2_t c) {
@@ -268,7 +248,7 @@ void test_vst1q_p64(poly64_t * ptr, poly64x2_t val) {
 // CHECK:   store { <1 x i64>, <1 x i64> } [[VLD2]], { <1 x i64>, <1 x i64> }* [[TMP3]]
 // CHECK:   [[TMP4:%.*]] = bitcast %struct.poly64x1x2_t* [[RETVAL]] to i8*
 // CHECK:   [[TMP5:%.*]] = bitcast %struct.poly64x1x2_t* [[__RET]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP4]], i8* [[TMP5]], i64 16, i32 8, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 [[TMP4]], i8* align 8 [[TMP5]], i64 16, i1 false)
 // CHECK:   [[TMP6:%.*]] = load %struct.poly64x1x2_t, %struct.poly64x1x2_t* [[RETVAL]], align 8
 // CHECK:   ret %struct.poly64x1x2_t [[TMP6]]
 poly64x1x2_t test_vld2_p64(poly64_t const * ptr) {
@@ -286,7 +266,7 @@ poly64x1x2_t test_vld2_p64(poly64_t const * ptr) {
 // CHECK:   store { <2 x i64>, <2 x i64> } [[VLD2]], { <2 x i64>, <2 x i64> }* [[TMP3]]
 // CHECK:   [[TMP4:%.*]] = bitcast %struct.poly64x2x2_t* [[RETVAL]] to i8*
 // CHECK:   [[TMP5:%.*]] = bitcast %struct.poly64x2x2_t* [[__RET]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP4]], i8* [[TMP5]], i64 32, i32 16, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 [[TMP4]], i8* align 16 [[TMP5]], i64 32, i1 false)
 // CHECK:   [[TMP6:%.*]] = load %struct.poly64x2x2_t, %struct.poly64x2x2_t* [[RETVAL]], align 16
 // CHECK:   ret %struct.poly64x2x2_t [[TMP6]]
 poly64x2x2_t test_vld2q_p64(poly64_t const * ptr) {
@@ -304,7 +284,7 @@ poly64x2x2_t test_vld2q_p64(poly64_t const * ptr) {
 // CHECK:   store { <1 x i64>, <1 x i64>, <1 x i64> } [[VLD3]], { <1 x i64>, <1 x i64>, <1 x i64> }* [[TMP3]]
 // CHECK:   [[TMP4:%.*]] = bitcast %struct.poly64x1x3_t* [[RETVAL]] to i8*
 // CHECK:   [[TMP5:%.*]] = bitcast %struct.poly64x1x3_t* [[__RET]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP4]], i8* [[TMP5]], i64 24, i32 8, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 [[TMP4]], i8* align 8 [[TMP5]], i64 24, i1 false)
 // CHECK:   [[TMP6:%.*]] = load %struct.poly64x1x3_t, %struct.poly64x1x3_t* [[RETVAL]], align 8
 // CHECK:   ret %struct.poly64x1x3_t [[TMP6]]
 poly64x1x3_t test_vld3_p64(poly64_t const * ptr) {
@@ -322,7 +302,7 @@ poly64x1x3_t test_vld3_p64(poly64_t const * ptr) {
 // CHECK:   store { <2 x i64>, <2 x i64>, <2 x i64> } [[VLD3]], { <2 x i64>, <2 x i64>, <2 x i64> }* [[TMP3]]
 // CHECK:   [[TMP4:%.*]] = bitcast %struct.poly64x2x3_t* [[RETVAL]] to i8*
 // CHECK:   [[TMP5:%.*]] = bitcast %struct.poly64x2x3_t* [[__RET]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP4]], i8* [[TMP5]], i64 48, i32 16, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 [[TMP4]], i8* align 16 [[TMP5]], i64 48, i1 false)
 // CHECK:   [[TMP6:%.*]] = load %struct.poly64x2x3_t, %struct.poly64x2x3_t* [[RETVAL]], align 16
 // CHECK:   ret %struct.poly64x2x3_t [[TMP6]]
 poly64x2x3_t test_vld3q_p64(poly64_t const * ptr) {
@@ -340,7 +320,7 @@ poly64x2x3_t test_vld3q_p64(poly64_t const * ptr) {
 // CHECK:   store { <1 x i64>, <1 x i64>, <1 x i64>, <1 x i64> } [[VLD4]], { <1 x i64>, <1 x i64>, <1 x i64>, <1 x i64> }* [[TMP3]]
 // CHECK:   [[TMP4:%.*]] = bitcast %struct.poly64x1x4_t* [[RETVAL]] to i8*
 // CHECK:   [[TMP5:%.*]] = bitcast %struct.poly64x1x4_t* [[__RET]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP4]], i8* [[TMP5]], i64 32, i32 8, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 [[TMP4]], i8* align 8 [[TMP5]], i64 32, i1 false)
 // CHECK:   [[TMP6:%.*]] = load %struct.poly64x1x4_t, %struct.poly64x1x4_t* [[RETVAL]], align 8
 // CHECK:   ret %struct.poly64x1x4_t [[TMP6]]
 poly64x1x4_t test_vld4_p64(poly64_t const * ptr) {
@@ -358,7 +338,7 @@ poly64x1x4_t test_vld4_p64(poly64_t const * ptr) {
 // CHECK:   store { <2 x i64>, <2 x i64>, <2 x i64>, <2 x i64> } [[VLD4]], { <2 x i64>, <2 x i64>, <2 x i64>, <2 x i64> }* [[TMP3]]
 // CHECK:   [[TMP4:%.*]] = bitcast %struct.poly64x2x4_t* [[RETVAL]] to i8*
 // CHECK:   [[TMP5:%.*]] = bitcast %struct.poly64x2x4_t* [[__RET]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP4]], i8* [[TMP5]], i64 64, i32 16, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 [[TMP4]], i8* align 16 [[TMP5]], i64 64, i1 false)
 // CHECK:   [[TMP6:%.*]] = load %struct.poly64x2x4_t, %struct.poly64x2x4_t* [[RETVAL]], align 16
 // CHECK:   ret %struct.poly64x2x4_t [[TMP6]]
 poly64x2x4_t test_vld4q_p64(poly64_t const * ptr) {
@@ -372,7 +352,7 @@ poly64x2x4_t test_vld4q_p64(poly64_t const * ptr) {
 // CHECK:   store [2 x <1 x i64>] [[VAL]].coerce, [2 x <1 x i64>]* [[COERCE_DIVE]], align 8
 // CHECK:   [[TMP0:%.*]] = bitcast %struct.poly64x1x2_t* [[__S1]] to i8*
 // CHECK:   [[TMP1:%.*]] = bitcast %struct.poly64x1x2_t* [[VAL]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP0]], i8* [[TMP1]], i64 16, i32 8, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 [[TMP0]], i8* align 8 [[TMP1]], i64 16, i1 false)
 // CHECK:   [[TMP2:%.*]] = bitcast i64* %ptr to i8*
 // CHECK:   [[VAL1:%.*]] = getelementptr inbounds %struct.poly64x1x2_t, %struct.poly64x1x2_t* [[__S1]], i32 0, i32 0
 // CHECK:   [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x <1 x i64>], [2 x <1 x i64>]* [[VAL1]], i64 0, i64 0
@@ -397,7 +377,7 @@ void test_vst2_p64(poly64_t * ptr, poly64x1x2_t val) {
 // CHECK:   store [2 x <2 x i64>] [[VAL]].coerce, [2 x <2 x i64>]* [[COERCE_DIVE]], align 16
 // CHECK:   [[TMP0:%.*]] = bitcast %struct.poly64x2x2_t* [[__S1]] to i8*
 // CHECK:   [[TMP1:%.*]] = bitcast %struct.poly64x2x2_t* [[VAL]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP0]], i8* [[TMP1]], i64 32, i32 16, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 [[TMP0]], i8* align 16 [[TMP1]], i64 32, i1 false)
 // CHECK:   [[TMP2:%.*]] = bitcast i64* %ptr to i8*
 // CHECK:   [[VAL1:%.*]] = getelementptr inbounds %struct.poly64x2x2_t, %struct.poly64x2x2_t* [[__S1]], i32 0, i32 0
 // CHECK:   [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x <2 x i64>], [2 x <2 x i64>]* [[VAL1]], i64 0, i64 0
@@ -422,7 +402,7 @@ void test_vst2q_p64(poly64_t * ptr, poly64x2x2_t val) {
 // CHECK:   store [3 x <1 x i64>] [[VAL]].coerce, [3 x <1 x i64>]* [[COERCE_DIVE]], align 8
 // CHECK:   [[TMP0:%.*]] = bitcast %struct.poly64x1x3_t* [[__S1]] to i8*
 // CHECK:   [[TMP1:%.*]] = bitcast %struct.poly64x1x3_t* [[VAL]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP0]], i8* [[TMP1]], i64 24, i32 8, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 [[TMP0]], i8* align 8 [[TMP1]], i64 24, i1 false)
 // CHECK:   [[TMP2:%.*]] = bitcast i64* %ptr to i8*
 // CHECK:   [[VAL1:%.*]] = getelementptr inbounds %struct.poly64x1x3_t, %struct.poly64x1x3_t* [[__S1]], i32 0, i32 0
 // CHECK:   [[ARRAYIDX:%.*]] = getelementptr inbounds [3 x <1 x i64>], [3 x <1 x i64>]* [[VAL1]], i64 0, i64 0
@@ -452,7 +432,7 @@ void test_vst3_p64(poly64_t * ptr, poly64x1x3_t val) {
 // CHECK:   store [3 x <2 x i64>] [[VAL]].coerce, [3 x <2 x i64>]* [[COERCE_DIVE]], align 16
 // CHECK:   [[TMP0:%.*]] = bitcast %struct.poly64x2x3_t* [[__S1]] to i8*
 // CHECK:   [[TMP1:%.*]] = bitcast %struct.poly64x2x3_t* [[VAL]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP0]], i8* [[TMP1]], i64 48, i32 16, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 [[TMP0]], i8* align 16 [[TMP1]], i64 48, i1 false)
 // CHECK:   [[TMP2:%.*]] = bitcast i64* %ptr to i8*
 // CHECK:   [[VAL1:%.*]] = getelementptr inbounds %struct.poly64x2x3_t, %struct.poly64x2x3_t* [[__S1]], i32 0, i32 0
 // CHECK:   [[ARRAYIDX:%.*]] = getelementptr inbounds [3 x <2 x i64>], [3 x <2 x i64>]* [[VAL1]], i64 0, i64 0
@@ -482,7 +462,7 @@ void test_vst3q_p64(poly64_t * ptr, poly64x2x3_t val) {
 // CHECK:   store [4 x <1 x i64>] [[VAL]].coerce, [4 x <1 x i64>]* [[COERCE_DIVE]], align 8
 // CHECK:   [[TMP0:%.*]] = bitcast %struct.poly64x1x4_t* [[__S1]] to i8*
 // CHECK:   [[TMP1:%.*]] = bitcast %struct.poly64x1x4_t* [[VAL]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP0]], i8* [[TMP1]], i64 32, i32 8, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 [[TMP0]], i8* align 8 [[TMP1]], i64 32, i1 false)
 // CHECK:   [[TMP2:%.*]] = bitcast i64* %ptr to i8*
 // CHECK:   [[VAL1:%.*]] = getelementptr inbounds %struct.poly64x1x4_t, %struct.poly64x1x4_t* [[__S1]], i32 0, i32 0
 // CHECK:   [[ARRAYIDX:%.*]] = getelementptr inbounds [4 x <1 x i64>], [4 x <1 x i64>]* [[VAL1]], i64 0, i64 0
@@ -517,7 +497,7 @@ void test_vst4_p64(poly64_t * ptr, poly64x1x4_t val) {
 // CHECK:   store [4 x <2 x i64>] [[VAL]].coerce, [4 x <2 x i64>]* [[COERCE_DIVE]], align 16
 // CHECK:   [[TMP0:%.*]] = bitcast %struct.poly64x2x4_t* [[__S1]] to i8*
 // CHECK:   [[TMP1:%.*]] = bitcast %struct.poly64x2x4_t* [[VAL]] to i8*
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[TMP0]], i8* [[TMP1]], i64 64, i32 16, i1 false)
+// CHECK:   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 [[TMP0]], i8* align 16 [[TMP1]], i64 64, i1 false)
 // CHECK:   [[TMP2:%.*]] = bitcast i64* %ptr to i8*
 // CHECK:   [[VAL1:%.*]] = getelementptr inbounds %struct.poly64x2x4_t, %struct.poly64x2x4_t* [[__S1]], i32 0, i32 0
 // CHECK:   [[ARRAYIDX:%.*]] = getelementptr inbounds [4 x <2 x i64>], [4 x <2 x i64>]* [[VAL1]], i64 0, i64 0

@@ -87,6 +87,13 @@ namespace vbase {
   D d2(0, 0); // expected-error {{deleted}}
 }
 
+namespace vbase_of_vbase {
+  struct V { V(int); };
+  struct W : virtual V { using V::V; };
+  struct X : virtual W, virtual V { using W::W; };
+  X x(0);
+}
+
 namespace constexpr_init_order {
   struct Param;
   struct A {
@@ -107,7 +114,7 @@ namespace constexpr_init_order {
   constexpr B b(1);
   constexpr B c(1);
   static_assert(b.a == 1, "p should be initialized before B() is executed");
-  static_assert(c.a == 7, "b not initialzed properly");
+  static_assert(c.a == 7, "b not initialized properly");
 }
 
 namespace default_args {

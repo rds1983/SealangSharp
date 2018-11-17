@@ -1,4 +1,4 @@
-//===--- Action.h - Abstract compilation steps ------------------*- C++ -*-===//
+//===- Action.h - Abstract compilation steps --------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,20 +10,23 @@
 #ifndef LLVM_CLANG_DRIVER_ACTION_H
 #define LLVM_CLANG_DRIVER_ACTION_H
 
-#include "clang/Basic/Cuda.h"
+#include "clang/Basic/LLVM.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator_range.h"
+#include <string>
 
 namespace llvm {
-
-class StringRef;
-
 namespace opt {
-  class Arg;
-}
-}
+
+class Arg;
+
+} // namespace opt
+} // namespace llvm
 
 namespace clang {
 namespace driver {
@@ -44,11 +47,11 @@ class ToolChain;
 /// actions via MakeAction().
 class Action {
 public:
-  typedef ActionList::size_type size_type;
-  typedef ActionList::iterator input_iterator;
-  typedef ActionList::const_iterator input_const_iterator;
-  typedef llvm::iterator_range<input_iterator> input_range;
-  typedef llvm::iterator_range<input_const_iterator> input_const_range;
+  using size_type = ActionList::size_type;
+  using input_iterator = ActionList::iterator;
+  using input_const_iterator = ActionList::const_iterator;
+  using input_range = llvm::iterator_range<input_iterator>;
+  using input_const_range = llvm::iterator_range<input_const_iterator>;
 
   enum ActionClass {
     InputClass = 0,
@@ -66,9 +69,11 @@ public:
     DsymutilJobClass,
     VerifyDebugInfoJobClass,
     VerifyPCHJobClass,
+    OffloadBundlingJobClass,
+    OffloadUnbundlingJobClass,
 
     JobClassFirst = PreprocessJobClass,
-    JobClassLast = VerifyPCHJobClass
+    JobClassLast = OffloadUnbundlingJobClass
   };
 
   // The offloading kind determines if this action is binded to a particular
@@ -76,10 +81,14 @@ public:
   // to designate the host offloading tool chain.
   enum OffloadKind {
     OFK_None = 0x00,
+
     // The host offloading tool chain.
     OFK_Host = 0x01,
+
     // The device offloading tool chains - one bit for each programming model.
     OFK_Cuda = 0x02,
+    OFK_OpenMP = 0x04,
+    OFK_HIP = 0x08,
   };
 
   static const char *getClassName(ActionClass AC);
@@ -92,6 +101,12 @@ private:
 
   ActionList Inputs;
 
+  /// Flag that is set to true if this action can be collapsed with others
+  /// actions that depend on it. This is true by default and set to false when
+  /// the action is used by two different tool chains, which is enabled by the
+  /// offloading support implementation.
+  bool CanBeCollapsedWithNextDependentAction = true;
+
 protected:
   ///
   /// Offload information.
@@ -101,8 +116,10 @@ protected:
   /// Multiple programming models may be supported simultaneously by the same
   /// host.
   unsigned ActiveOffloadKindMask = 0u;
+
   /// Offloading kind of the device.
   OffloadKind OffloadingDeviceKind = OFK_None;
+
   /// The Offloading architecture associated with this action.
   const char *OffloadingArch = nullptr;
 
@@ -136,19 +153,38 @@ public:
     return input_const_range(input_begin(), input_end());
   }
 
+  /// Mark this action as not legal to collapse.
+  void setCannotBeCollapsedWithNextDependentAction() {
+    CanBeCollapsedWithNextDependentAction = false;
+  }
+
+  /// Return true if this function can be collapsed with others.
+  bool isCollapsingWithNextDependentActionLegal() const {
+    return CanBeCollapsedWithNextDependentAction;
+  }
+
   /// Return a string containing the offload kind of the action.
   std::string getOffloadingKindPrefix() const;
+
   /// Return a string that can be used as prefix in order to generate unique
-  /// files for each offloading kind.
-  std::string
-  getOffloadingFileNamePrefix(llvm::StringRef NormalizedTriple) const;
+  /// files for each offloading kind. By default, no prefix is used for
+  /// non-device kinds, except if \a CreatePrefixForHost is set.
+  static std::string
+  GetOffloadingFileNamePrefix(OffloadKind Kind,
+                              StringRef NormalizedTriple,
+                              bool CreatePrefixForHost = false);
+
+  /// Return a string containing a offload kind name.
+  static StringRef GetOffloadKindName(OffloadKind Kind);
 
   /// Set the device offload info of this action and propagate it to its
   /// dependences.
   void propagateDeviceOffloadInfo(OffloadKind OKind, const char *OArch);
+
   /// Append the host offload info of this action and propagate it to its
   /// dependences.
   void propagateHostOffloadInfo(unsigned OKinds, const char *OArch);
+
   /// Set the offload info of this action to be the same as the provided action,
   /// and propagate it to its dependences.
   void propagateOffloadInfo(const Action *A);
@@ -156,6 +192,7 @@ public:
   unsigned getOffloadingHostActiveKinds() const {
     return ActiveOffloadKindMask;
   }
+
   OffloadKind getOffloadingDeviceKind() const { return OffloadingDeviceKind; }
   const char *getOffloadingArch() const { return OffloadingArch; }
 
@@ -173,8 +210,9 @@ public:
 };
 
 class InputAction : public Action {
-  virtual void anchor();
   const llvm::opt::Arg &Input;
+
+  virtual void anchor();
 
 public:
   InputAction(const llvm::opt::Arg &Input, types::ID Type);
@@ -188,14 +226,15 @@ public:
 
 class BindArchAction : public Action {
   virtual void anchor();
+
   /// The architecture to bind, or 0 if the default architecture
   /// should be bound.
-  const char *ArchName;
+  StringRef ArchName;
 
 public:
-  BindArchAction(Action *Input, const char *ArchName);
+  BindArchAction(Action *Input, StringRef ArchName);
 
-  const char *getArchName() const { return ArchName; }
+  StringRef getArchName() const { return ArchName; }
 
   static bool classof(const Action *A) {
     return A->getKind() == BindArchClass;
@@ -213,9 +252,9 @@ public:
   /// toolchain, and offload kind to each action.
   class DeviceDependences final {
   public:
-    typedef SmallVector<const ToolChain *, 3> ToolChainList;
-    typedef SmallVector<const char *, 3> BoundArchList;
-    typedef SmallVector<OffloadKind, 3> OffloadKindList;
+    using ToolChainList = SmallVector<const ToolChain *, 3>;
+    using BoundArchList = SmallVector<const char *, 3>;
+    using OffloadKindList = SmallVector<OffloadKind, 3>;
 
   private:
     // Lists that keep the information for each dependency. All the lists are
@@ -225,10 +264,13 @@ public:
 
     /// The dependence actions.
     ActionList DeviceActions;
+
     /// The offloading toolchains that should be used with the action.
     ToolChainList DeviceToolChains;
+
     /// The architectures that should be used with this action.
     BoundArchList DeviceBoundArchs;
+
     /// The offload kind of each dependence.
     OffloadKindList DeviceOffloadKinds;
 
@@ -239,12 +281,12 @@ public:
              OffloadKind OKind);
 
     /// Get each of the individual arrays.
-    const ActionList &getActions() const { return DeviceActions; };
-    const ToolChainList &getToolChains() const { return DeviceToolChains; };
-    const BoundArchList &getBoundArchs() const { return DeviceBoundArchs; };
+    const ActionList &getActions() const { return DeviceActions; }
+    const ToolChainList &getToolChains() const { return DeviceToolChains; }
+    const BoundArchList &getBoundArchs() const { return DeviceBoundArchs; }
     const OffloadKindList &getOffloadKinds() const {
       return DeviceOffloadKinds;
-    };
+    }
   };
 
   /// Type used to communicate host actions. It associates bound architecture,
@@ -252,10 +294,13 @@ public:
   class HostDependence final {
     /// The dependence action.
     Action &HostAction;
+
     /// The offloading toolchain that should be used with the action.
     const ToolChain &HostToolChain;
+
     /// The architectures that should be used with this action.
     const char *HostBoundArch = nullptr;
+
     /// The offload kind of each dependence.
     unsigned HostOffloadKinds = 0u;
 
@@ -263,19 +308,20 @@ public:
     HostDependence(Action &A, const ToolChain &TC, const char *BoundArch,
                    const unsigned OffloadKinds)
         : HostAction(A), HostToolChain(TC), HostBoundArch(BoundArch),
-          HostOffloadKinds(OffloadKinds){};
+          HostOffloadKinds(OffloadKinds) {}
+
     /// Constructor version that obtains the offload kinds from the device
     /// dependencies.
     HostDependence(Action &A, const ToolChain &TC, const char *BoundArch,
                    const DeviceDependences &DDeps);
-    Action *getAction() const { return &HostAction; };
-    const ToolChain *getToolChain() const { return &HostToolChain; };
-    const char *getBoundArch() const { return HostBoundArch; };
-    unsigned getOffloadKinds() const { return HostOffloadKinds; };
+    Action *getAction() const { return &HostAction; }
+    const ToolChain *getToolChain() const { return &HostToolChain; }
+    const char *getBoundArch() const { return HostBoundArch; }
+    unsigned getOffloadKinds() const { return HostOffloadKinds; }
   };
 
-  typedef llvm::function_ref<void(Action *, const ToolChain *, const char *)>
-      OffloadActionWorkTy;
+  using OffloadActionWorkTy =
+      llvm::function_ref<void(Action *, const ToolChain *, const char *)>;
 
 private:
   /// The host offloading toolchain that should be used with the action.
@@ -326,6 +372,7 @@ public:
 
 class JobAction : public Action {
   virtual void anchor();
+
 protected:
   JobAction(ActionClass Kind, Action *Input, types::ID Type);
   JobAction(ActionClass Kind, const ActionList &Inputs, types::ID Type);
@@ -339,6 +386,7 @@ public:
 
 class PreprocessJobAction : public JobAction {
   void anchor() override;
+
 public:
   PreprocessJobAction(Action *Input, types::ID OutputType);
 
@@ -349,6 +397,7 @@ public:
 
 class PrecompileJobAction : public JobAction {
   void anchor() override;
+
 public:
   PrecompileJobAction(Action *Input, types::ID OutputType);
 
@@ -359,6 +408,7 @@ public:
 
 class AnalyzeJobAction : public JobAction {
   void anchor() override;
+
 public:
   AnalyzeJobAction(Action *Input, types::ID OutputType);
 
@@ -369,6 +419,7 @@ public:
 
 class MigrateJobAction : public JobAction {
   void anchor() override;
+
 public:
   MigrateJobAction(Action *Input, types::ID OutputType);
 
@@ -379,6 +430,7 @@ public:
 
 class CompileJobAction : public JobAction {
   void anchor() override;
+
 public:
   CompileJobAction(Action *Input, types::ID OutputType);
 
@@ -389,6 +441,7 @@ public:
 
 class BackendJobAction : public JobAction {
   void anchor() override;
+
 public:
   BackendJobAction(Action *Input, types::ID OutputType);
 
@@ -399,6 +452,7 @@ public:
 
 class AssembleJobAction : public JobAction {
   void anchor() override;
+
 public:
   AssembleJobAction(Action *Input, types::ID OutputType);
 
@@ -409,6 +463,7 @@ public:
 
 class LinkJobAction : public JobAction {
   void anchor() override;
+
 public:
   LinkJobAction(ActionList &Inputs, types::ID Type);
 
@@ -419,6 +474,7 @@ public:
 
 class LipoJobAction : public JobAction {
   void anchor() override;
+
 public:
   LipoJobAction(ActionList &Inputs, types::ID Type);
 
@@ -429,6 +485,7 @@ public:
 
 class DsymutilJobAction : public JobAction {
   void anchor() override;
+
 public:
   DsymutilJobAction(ActionList &Inputs, types::ID Type);
 
@@ -439,8 +496,10 @@ public:
 
 class VerifyJobAction : public JobAction {
   void anchor() override;
+
 public:
   VerifyJobAction(ActionClass Kind, Action *Input, types::ID Type);
+
   static bool classof(const Action *A) {
     return A->getKind() == VerifyDebugInfoJobClass ||
            A->getKind() == VerifyPCHJobClass;
@@ -449,8 +508,10 @@ public:
 
 class VerifyDebugInfoJobAction : public VerifyJobAction {
   void anchor() override;
+
 public:
   VerifyDebugInfoJobAction(Action *Input, types::ID Type);
+
   static bool classof(const Action *A) {
     return A->getKind() == VerifyDebugInfoJobClass;
   }
@@ -458,14 +519,77 @@ public:
 
 class VerifyPCHJobAction : public VerifyJobAction {
   void anchor() override;
+
 public:
   VerifyPCHJobAction(Action *Input, types::ID Type);
+
   static bool classof(const Action *A) {
     return A->getKind() == VerifyPCHJobClass;
   }
 };
 
-} // end namespace driver
-} // end namespace clang
+class OffloadBundlingJobAction : public JobAction {
+  void anchor() override;
 
-#endif
+public:
+  // Offloading bundling doesn't change the type of output.
+  OffloadBundlingJobAction(ActionList &Inputs);
+
+  static bool classof(const Action *A) {
+    return A->getKind() == OffloadBundlingJobClass;
+  }
+};
+
+class OffloadUnbundlingJobAction final : public JobAction {
+  void anchor() override;
+
+public:
+  /// Type that provides information about the actions that depend on this
+  /// unbundling action.
+  struct DependentActionInfo final {
+    /// The tool chain of the dependent action.
+    const ToolChain *DependentToolChain = nullptr;
+
+    /// The bound architecture of the dependent action.
+    StringRef DependentBoundArch;
+
+    /// The offload kind of the dependent action.
+    const OffloadKind DependentOffloadKind = OFK_None;
+
+    DependentActionInfo(const ToolChain *DependentToolChain,
+                        StringRef DependentBoundArch,
+                        const OffloadKind DependentOffloadKind)
+        : DependentToolChain(DependentToolChain),
+          DependentBoundArch(DependentBoundArch),
+          DependentOffloadKind(DependentOffloadKind) {}
+  };
+
+private:
+  /// Container that keeps information about each dependence of this unbundling
+  /// action.
+  SmallVector<DependentActionInfo, 6> DependentActionInfoArray;
+
+public:
+  // Offloading unbundling doesn't change the type of output.
+  OffloadUnbundlingJobAction(Action *Input);
+
+  /// Register information about a dependent action.
+  void registerDependentActionInfo(const ToolChain *TC, StringRef BoundArch,
+                                   OffloadKind Kind) {
+    DependentActionInfoArray.push_back({TC, BoundArch, Kind});
+  }
+
+  /// Return the information about all depending actions.
+  ArrayRef<DependentActionInfo> getDependentActionsInfo() const {
+    return DependentActionInfoArray;
+  }
+
+  static bool classof(const Action *A) {
+    return A->getKind() == OffloadUnbundlingJobClass;
+  }
+};
+
+} // namespace driver
+} // namespace clang
+
+#endif // LLVM_CLANG_DRIVER_ACTION_H

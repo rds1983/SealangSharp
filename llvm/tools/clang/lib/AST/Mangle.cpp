@@ -44,7 +44,7 @@ static void mangleFunctionBlock(MangleContext &Context,
   if (discriminator == 0)
     Out << "__" << Outer << "_block_invoke";
   else
-    Out << "__" << Outer << "_block_invoke_" << discriminator+1; 
+    Out << "__" << Outer << "_block_invoke_" << discriminator+1;
 }
 
 void MangleContext::anchor() { }
@@ -52,6 +52,7 @@ void MangleContext::anchor() { }
 enum CCMangling {
   CCM_Other,
   CCM_Fast,
+  CCM_RegCall,
   CCM_Vector,
   CCM_Std
 };
@@ -100,6 +101,11 @@ bool MangleContext::shouldMangleDeclName(const NamedDecl *D) {
 
   CCMangling CC = getCallingConvMangling(ASTContext, D);
   if (CC != CCM_Other)
+    return true;
+
+  // If the declaration has an owning module for linkage purposes that needs to
+  // be mangled, we must mangle its name.
+  if (!D->hasExternalFormalLinkage() && D->getOwningModuleForLinkage())
     return true;
 
   // In C, functions with no attributes never need to be mangled. Fastpath them.
@@ -152,6 +158,8 @@ void MangleContext::mangleName(const NamedDecl *D, raw_ostream &Out) {
     Out << '_';
   else if (CC == CCM_Fast)
     Out << '@';
+  else if (CC == CCM_RegCall)
+    Out << "__regcall3__";
 
   if (!MCXX)
     Out << D->getIdentifier()->getName();
@@ -259,9 +267,13 @@ void MangleContext::mangleObjCMethodNameWithoutSize(const ObjCMethodDecl *MD,
   const ObjCContainerDecl *CD =
   dyn_cast<ObjCContainerDecl>(MD->getDeclContext());
   assert (CD && "Missing container decl in GetNameForMethod");
-  OS << (MD->isInstanceMethod() ? '-' : '+') << '[' << CD->getName();
-  if (const ObjCCategoryImplDecl *CID = dyn_cast<ObjCCategoryImplDecl>(CD))
+  OS << (MD->isInstanceMethod() ? '-' : '+') << '[';
+  if (const ObjCCategoryImplDecl *CID = dyn_cast<ObjCCategoryImplDecl>(CD)) {
+    OS << CID->getClassInterface()->getName();
     OS << '(' << *CID << ')';
+  } else {
+    OS << CD->getName();
+  }
   OS << ' ';
   MD->getSelector().print(OS);
   OS << ']';

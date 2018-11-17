@@ -145,7 +145,7 @@ void f13_test() {
   f13();
 }
 // f13()::L::foo[abi:C][abi:D]()
-// CHECK-DAG: define linkonce_odr %struct.E* @_ZZ3f13vEN1L3fooB1CB1DEv(
+// CHECK-DAG: define linkonce_odr {{(dso_local )?}}%struct.E* @_ZZ3f13vEN1L3fooB1CB1DEv(
 
 // f13()::L::foo[abi:C][abi:D]()::a[abi:A][abi:B]
 // CHECK-DAG: @_ZZZ3f13vEN1L3fooB1CB1DEvE1aB1AB1B =
@@ -203,3 +203,32 @@ void f18_test() {
 }
 // A18::operator A[abi:A][abi:B]() but GCC adds the same tags twice!
 // CHECK-DAG: define linkonce_odr {{.+}} @_ZN3A18cv1AB1AB1BEv(
+
+namespace N19 {
+  class A {};
+  class __attribute__((abi_tag("B"))) B {};
+  class D {};
+  class F {};
+
+  template<typename T, B F(T, D)>
+  class C {};
+
+  B foo(A, D);
+}
+void f19_test(N19::C<N19::A,  &N19::foo>, N19::F, N19::D) {
+}
+// f19_test(N19::C<N19::A, &N19::foo[abi:B]>, N19::F, N19::D)
+// CHECK-DAG: define {{(dso_local )?}}void @_Z8f19_testN3N191CINS_1AEXadL_ZNS_3fooB1BES1_NS_1DEEEEENS_1FES2_(
+
+namespace pr30440 {
+
+template<class F> void g(F);
+template<class ...A> auto h(A ...a)->decltype (g (0, g < a > (a) ...)) {
+}
+// CHECK-DAG: define {{.*}} @_ZN7pr304401hIJEEEDTcl1gLi0Espcl1gIL_ZZNS_1hEDpT_E1aEEfp_EEES2_(
+
+void pr30440_test () {
+  h();
+}
+
+}

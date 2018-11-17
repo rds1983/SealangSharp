@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -std=c++11 -fsyntax-only -analyze -analyzer-checker=core,deadcode,debug.ExprInspection -analyzer-config inline-lambdas=true -verify %s
-// RUN: %clang_cc1 -std=c++11 -fsyntax-only -analyze -analyzer-checker=core,debug.DumpCFG -analyzer-config inline-lambdas=true %s > %t 2>&1
+// RUN: %clang_analyze_cc1 -std=c++11 -analyzer-checker=core,deadcode,debug.ExprInspection -analyzer-config inline-lambdas=true -verify %s
+// RUN: %clang_analyze_cc1 -std=c++11 -analyzer-checker=core,debug.DumpCFG -analyzer-config inline-lambdas=true %s > %t 2>&1
 // RUN: FileCheck --input-file=%t %s
 
 void clang_analyzer_warnIfReached();
@@ -212,7 +212,7 @@ struct DontCrash {
     callLambda([&](){ ++x; });
     callLambdaFromStatic([&](){ ++x; });
   }
-  
+
   template<typename T>
   static void callLambdaFromStatic(T t) {
     t();
@@ -337,6 +337,33 @@ void captureByReference() {
   lambda2();
 }
 
+void testCapturedConstExprFloat() {
+  constexpr float localConstant = 4.0;
+  auto lambda = []{
+    // Don't treat localConstant as containing a garbage value
+    float copy = localConstant; // no-warning
+    (void)copy;
+  };
+
+  lambda();
+}
+
+
+static int b = 0;
+
+int f() {
+  b = 0;
+  auto &bm = b;
+  [&] {
+    bm++;
+    bm++;
+  }();
+  if (bm != 2) {
+    int *y = 0;
+    return *y; // no-warning
+  }
+  return 0;
+}
 
 // CHECK: [B2 (ENTRY)]
 // CHECK:   Succs (1): B1

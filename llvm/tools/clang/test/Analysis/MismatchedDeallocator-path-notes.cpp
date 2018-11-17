@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.MismatchedDeallocator -analyzer-output=text -verify %s
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.MismatchedDeallocator -analyzer-output=plist -analyzer-config path-diagnostics-alternate=false %s -o %t.plist
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.MismatchedDeallocator -analyzer-output=text -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.MismatchedDeallocator -analyzer-output=plist %s -o %t.plist
 // RUN: FileCheck --input-file=%t.plist %s
 
 void changePointee(int *p);
@@ -131,40 +131,6 @@ void test() {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:    </dict>
 // CHECK-NEXT:    <dict>
-// CHECK-NEXT:     <key>kind</key><string>control</string>
-// CHECK-NEXT:     <key>edges</key>
-// CHECK-NEXT:      <array>
-// CHECK-NEXT:       <dict>
-// CHECK-NEXT:        <key>start</key>
-// CHECK-NEXT:         <array>
-// CHECK-NEXT:          <dict>
-// CHECK-NEXT:           <key>line</key><integer>7</integer>
-// CHECK-NEXT:           <key>col</key><integer>3</integer>
-// CHECK-NEXT:           <key>file</key><integer>0</integer>
-// CHECK-NEXT:          </dict>
-// CHECK-NEXT:          <dict>
-// CHECK-NEXT:           <key>line</key><integer>7</integer>
-// CHECK-NEXT:           <key>col</key><integer>8</integer>
-// CHECK-NEXT:           <key>file</key><integer>0</integer>
-// CHECK-NEXT:          </dict>
-// CHECK-NEXT:         </array>
-// CHECK-NEXT:        <key>end</key>
-// CHECK-NEXT:         <array>
-// CHECK-NEXT:          <dict>
-// CHECK-NEXT:           <key>line</key><integer>7</integer>
-// CHECK-NEXT:           <key>col</key><integer>10</integer>
-// CHECK-NEXT:           <key>file</key><integer>0</integer>
-// CHECK-NEXT:          </dict>
-// CHECK-NEXT:          <dict>
-// CHECK-NEXT:           <key>line</key><integer>7</integer>
-// CHECK-NEXT:           <key>col</key><integer>12</integer>
-// CHECK-NEXT:           <key>file</key><integer>0</integer>
-// CHECK-NEXT:          </dict>
-// CHECK-NEXT:         </array>
-// CHECK-NEXT:       </dict>
-// CHECK-NEXT:      </array>
-// CHECK-NEXT:    </dict>
-// CHECK-NEXT:    <dict>
 // CHECK-NEXT:     <key>kind</key><string>event</string>
 // CHECK-NEXT:     <key>location</key>
 // CHECK-NEXT:     <dict>
@@ -243,6 +209,40 @@ void test() {
 // CHECK-NEXT:        <key>end</key>
 // CHECK-NEXT:         <array>
 // CHECK-NEXT:          <dict>
+// CHECK-NEXT:           <key>line</key><integer>10</integer>
+// CHECK-NEXT:           <key>col</key><integer>3</integer>
+// CHECK-NEXT:           <key>file</key><integer>0</integer>
+// CHECK-NEXT:          </dict>
+// CHECK-NEXT:          <dict>
+// CHECK-NEXT:           <key>line</key><integer>10</integer>
+// CHECK-NEXT:           <key>col</key><integer>5</integer>
+// CHECK-NEXT:           <key>file</key><integer>0</integer>
+// CHECK-NEXT:          </dict>
+// CHECK-NEXT:         </array>
+// CHECK-NEXT:       </dict>
+// CHECK-NEXT:      </array>
+// CHECK-NEXT:    </dict>
+// CHECK-NEXT:    <dict>
+// CHECK-NEXT:     <key>kind</key><string>control</string>
+// CHECK-NEXT:     <key>edges</key>
+// CHECK-NEXT:      <array>
+// CHECK-NEXT:       <dict>
+// CHECK-NEXT:        <key>start</key>
+// CHECK-NEXT:         <array>
+// CHECK-NEXT:          <dict>
+// CHECK-NEXT:           <key>line</key><integer>10</integer>
+// CHECK-NEXT:           <key>col</key><integer>3</integer>
+// CHECK-NEXT:           <key>file</key><integer>0</integer>
+// CHECK-NEXT:          </dict>
+// CHECK-NEXT:          <dict>
+// CHECK-NEXT:           <key>line</key><integer>10</integer>
+// CHECK-NEXT:           <key>col</key><integer>5</integer>
+// CHECK-NEXT:           <key>file</key><integer>0</integer>
+// CHECK-NEXT:          </dict>
+// CHECK-NEXT:         </array>
+// CHECK-NEXT:        <key>end</key>
+// CHECK-NEXT:         <array>
+// CHECK-NEXT:          <dict>
 // CHECK-NEXT:           <key>line</key><integer>13</integer>
 // CHECK-NEXT:           <key>col</key><integer>3</integer>
 // CHECK-NEXT:           <key>file</key><integer>0</integer>
@@ -287,7 +287,7 @@ void test() {
 // CHECK-NEXT:    </dict>
 // CHECK-NEXT:   </array>
 // CHECK-NEXT:   <key>description</key><string>Memory allocated by &apos;new[]&apos; should be deallocated by &apos;delete[]&apos;, not &apos;delete&apos;</string>
-// CHECK-NEXT:   <key>category</key><string>Memory Error</string>
+// CHECK-NEXT:   <key>category</key><string>Memory error</string>
 // CHECK-NEXT:   <key>type</key><string>Bad deallocator</string>
 // CHECK-NEXT:   <key>check_name</key><string>unix.MismatchedDeallocator</string>
 // CHECK-NEXT:   <!-- This hash is experimental and going to change! -->

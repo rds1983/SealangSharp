@@ -25,7 +25,7 @@ PCHContainerReader::~PCHContainerReader() {}
 
 namespace {
 
-/// \brief A PCHContainerGenerator that writes out the PCH to a flat file.
+/// A PCHContainerGenerator that writes out the PCH to a flat file.
 class RawPCHContainerGenerator : public ASTConsumer {
   std::shared_ptr<PCHBuffer> Buffer;
   std::unique_ptr<raw_pwrite_stream> OS;
@@ -58,10 +58,9 @@ std::unique_ptr<ASTConsumer> RawPCHContainerWriter::CreatePCHContainerGenerator(
   return llvm::make_unique<RawPCHContainerGenerator>(std::move(OS), Buffer);
 }
 
-void RawPCHContainerReader::ExtractPCH(
-    llvm::MemoryBufferRef Buffer, llvm::BitstreamReader &StreamFile) const {
-  StreamFile.init((const unsigned char *)Buffer.getBufferStart(),
-                  (const unsigned char *)Buffer.getBufferEnd());
+StringRef
+RawPCHContainerReader::ExtractPCH(llvm::MemoryBufferRef Buffer) const {
+  return Buffer.getBuffer();
 }
 
 PCHContainerOperations::PCHContainerOperations() {

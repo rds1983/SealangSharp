@@ -1,1 +1,1 @@
-cmake -G "Visual Studio 12 Win64" ..
+cmake -G "Visual Studio 15 2017" -A x64 -Thost=x64 ..

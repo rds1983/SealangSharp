@@ -20,6 +20,8 @@ set(LLVM_INCLUDE_TESTS OFF CACHE BOOL
 	"Generate build targets for the LLVM unit tests.")
 set(LLVM_INCLUDE_UTILS OFF CACHE BOOL
 	"Generate build targets for the LLVM utils.")
+set(LLVM_ENABLE_OCAMLDOC OFF CACHE BOOL
+	"Build OCaml bindings documentation.")
 
 add_subdirectory ("llvm")
 

@@ -12,10 +12,10 @@ void testInlineRedeclEarly() {
 
 @import templates_right;
 
-// CHECK-DAG: @list_left = global %class.List { %"struct.List<int>::node"* null, i32 8 }, align 8
-// CHECK-DAG: @list_right = global %class.List { %"struct.List<int>::node"* null, i32 12 }, align 8
-// CHECK-DAG: @_ZZ15testMixedStructvE1l = {{.*}} constant %class.List { %{{.*}}* null, i32 1 }, align 8
-// CHECK-DAG: @_ZZ15testMixedStructvE1r = {{.*}} constant %class.List { %{{.*}}* null, i32 2 }, align 8
+// CHECK-DAG: @list_left = global %[[LIST:.*]] { %[[LISTNODE:.*]]* null, i32 8 }, align 8
+// CHECK-DAG: @list_right = global %[[LIST]] { %[[LISTNODE]]* null, i32 12 }, align 8
+// CHECK-DAG: @_ZZ15testMixedStructvE1l = {{.*}} constant %[[LIST]] { %{{.*}}* null, i32 1 }, align 8
+// CHECK-DAG: @_ZZ15testMixedStructvE1r = {{.*}} constant %[[LIST]] { %{{.*}}* null, i32 2 }, align 8
 // CHECK-DAG: @_ZN29WithUndefinedStaticDataMemberIA_iE9undefinedE = external global
 
 void testTemplateClasses() {
@@ -77,10 +77,10 @@ unsigned testMixedStruct() {
   // CHECK: %[[l:.*]] = alloca %[[ListInt:[^ ]*]], align 8
   // CHECK: %[[r:.*]] = alloca %[[ListInt]], align 8
 
-  // CHECK: call {{.*}}memcpy{{.*}}(i8* %{{.*}}, i8* bitcast ({{.*}}* @_ZZ15testMixedStructvE1l to i8*), i64 16,
+  // CHECK: call {{.*}}memcpy{{.*}}(i8* align {{[0-9]+}} %{{.*}}, i8* align {{[0-9]+}} bitcast ({{.*}}* @_ZZ15testMixedStructvE1l to i8*), i64 16,
   ListInt_left l{0, 1};
 
-  // CHECK: call {{.*}}memcpy{{.*}}(i8* %{{.*}}, i8* bitcast ({{.*}}* @_ZZ15testMixedStructvE1r to i8*), i64 16,
+  // CHECK: call {{.*}}memcpy{{.*}}(i8* align {{[0-9]+}} %{{.*}}, i8* align {{[0-9]+}} bitcast ({{.*}}* @_ZZ15testMixedStructvE1r to i8*), i64 16,
   ListInt_right r{0, 2};
 
   // CHECK: call void @_Z10useListIntR4ListIiE(%[[ListInt]]* dereferenceable({{[0-9]+}}) %[[l]])
@@ -116,4 +116,19 @@ void testStaticDataMember() {
   (void) getStaticDataMemberRight();
 }
 
+void testWithAttributes() {
+  auto a = make_with_attributes_left();
+  auto b = make_with_attributes_right();
+  static_assert(alignof(decltype(a)) == 2, "");
+  static_assert(alignof(decltype(b)) == 2, "");
+}
 
+// Check that returnNonTrivial doesn't return Class0<S0> directly in registers.
+
+// CHECK: declare void @_Z16returnNonTrivialv(%struct.Class0* sret)
+
+@import template_nontrivial0;
+@import template_nontrivial1;
+
+S1::S1() : a(returnNonTrivial()) {
+}

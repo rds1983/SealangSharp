@@ -1,4 +1,4 @@
-//===--- Action.cpp - Abstract compilation steps --------------------------===//
+//===- Action.cpp - Abstract compilation steps ----------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -8,15 +8,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/Action.h"
-#include "clang/Driver/ToolChain.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Regex.h"
 #include <cassert>
-using namespace clang::driver;
+#include <string>
+
+using namespace clang;
+using namespace driver;
 using namespace llvm::opt;
 
-Action::~Action() {}
+Action::~Action() = default;
 
 const char *Action::getClassName(ActionClass AC) {
   switch (AC) {
@@ -36,6 +36,10 @@ const char *Action::getClassName(ActionClass AC) {
   case DsymutilJobClass: return "dsymutil";
   case VerifyDebugInfoJobClass: return "verify-debug-info";
   case VerifyPCHJobClass: return "verify-pch";
+  case OffloadBundlingJobClass:
+    return "clang-offload-bundler";
+  case OffloadUnbundlingJobClass:
+    return "clang-offload-unbundler";
   }
 
   llvm_unreachable("invalid class");
@@ -44,6 +48,9 @@ const char *Action::getClassName(ActionClass AC) {
 void Action::propagateDeviceOffloadInfo(OffloadKind OKind, const char *OArch) {
   // Offload action set its own kinds on their dependences.
   if (Kind == OffloadClass)
+    return;
+  // Unbundling actions use the host kinds.
+  if (Kind == OffloadUnbundlingJobClass)
     return;
 
   assert((OffloadingDeviceKind == OKind || OffloadingDeviceKind == OFK_None) &&
@@ -87,46 +94,79 @@ std::string Action::getOffloadingKindPrefix() const {
     break;
   case OFK_Cuda:
     return "device-cuda";
+  case OFK_OpenMP:
+    return "device-openmp";
+  case OFK_HIP:
+    return "device-hip";
 
     // TODO: Add other programming models here.
   }
 
   if (!ActiveOffloadKindMask)
-    return "";
+    return {};
 
   std::string Res("host");
+  assert(!((ActiveOffloadKindMask & OFK_Cuda) &&
+           (ActiveOffloadKindMask & OFK_HIP)) &&
+         "Cannot offload CUDA and HIP at the same time");
   if (ActiveOffloadKindMask & OFK_Cuda)
     Res += "-cuda";
+  if (ActiveOffloadKindMask & OFK_HIP)
+    Res += "-hip";
+  if (ActiveOffloadKindMask & OFK_OpenMP)
+    Res += "-openmp";
 
   // TODO: Add other programming models here.
 
   return Res;
 }
 
+/// Return a string that can be used as prefix in order to generate unique files
+/// for each offloading kind.
 std::string
-Action::getOffloadingFileNamePrefix(llvm::StringRef NormalizedTriple) const {
-  // A file prefix is only generated for device actions and consists of the
-  // offload kind and triple.
-  if (!OffloadingDeviceKind)
-    return "";
+Action::GetOffloadingFileNamePrefix(OffloadKind Kind,
+                                    StringRef NormalizedTriple,
+                                    bool CreatePrefixForHost) {
+  // Don't generate prefix for host actions unless required.
+  if (!CreatePrefixForHost && (Kind == OFK_None || Kind == OFK_Host))
+    return {};
 
   std::string Res("-");
-  Res += getOffloadingKindPrefix();
+  Res += GetOffloadKindName(Kind);
   Res += "-";
   Res += NormalizedTriple;
   return Res;
 }
 
+/// Return a string with the offload kind name. If that is not defined, we
+/// assume 'host'.
+StringRef Action::GetOffloadKindName(OffloadKind Kind) {
+  switch (Kind) {
+  case OFK_None:
+  case OFK_Host:
+    return "host";
+  case OFK_Cuda:
+    return "cuda";
+  case OFK_OpenMP:
+    return "openmp";
+  case OFK_HIP:
+    return "hip";
+
+    // TODO: Add other programming models here.
+  }
+
+  llvm_unreachable("invalid offload kind");
+}
+
 void InputAction::anchor() {}
 
 InputAction::InputAction(const Arg &_Input, types::ID _Type)
-  : Action(InputClass, _Type), Input(_Input) {
-}
+    : Action(InputClass, _Type), Input(_Input) {}
 
 void BindArchAction::anchor() {}
 
-BindArchAction::BindArchAction(Action *Input, const char *_ArchName)
-    : Action(BindArchClass, Input), ArchName(_ArchName) {}
+BindArchAction::BindArchAction(Action *Input, StringRef ArchName)
+    : Action(BindArchClass, Input), ArchName(ArchName) {}
 
 void OffloadAction::anchor() {}
 
@@ -267,8 +307,7 @@ JobAction::JobAction(ActionClass Kind, Action *Input, types::ID Type)
     : Action(Kind, Input, Type) {}
 
 JobAction::JobAction(ActionClass Kind, const ActionList &Inputs, types::ID Type)
-  : Action(Kind, Inputs, Type) {
-}
+    : Action(Kind, Inputs, Type) {}
 
 void PreprocessJobAction::anchor() {}
 
@@ -308,20 +347,17 @@ AssembleJobAction::AssembleJobAction(Action *Input, types::ID OutputType)
 void LinkJobAction::anchor() {}
 
 LinkJobAction::LinkJobAction(ActionList &Inputs, types::ID Type)
-  : JobAction(LinkJobClass, Inputs, Type) {
-}
+    : JobAction(LinkJobClass, Inputs, Type) {}
 
 void LipoJobAction::anchor() {}
 
 LipoJobAction::LipoJobAction(ActionList &Inputs, types::ID Type)
-  : JobAction(LipoJobClass, Inputs, Type) {
-}
+    : JobAction(LipoJobClass, Inputs, Type) {}
 
 void DsymutilJobAction::anchor() {}
 
 DsymutilJobAction::DsymutilJobAction(ActionList &Inputs, types::ID Type)
-  : JobAction(DsymutilJobClass, Inputs, Type) {
-}
+    : JobAction(DsymutilJobClass, Inputs, Type) {}
 
 void VerifyJobAction::anchor() {}
 
@@ -342,3 +378,13 @@ void VerifyPCHJobAction::anchor() {}
 
 VerifyPCHJobAction::VerifyPCHJobAction(Action *Input, types::ID Type)
     : VerifyJobAction(VerifyPCHJobClass, Input, Type) {}
+
+void OffloadBundlingJobAction::anchor() {}
+
+OffloadBundlingJobAction::OffloadBundlingJobAction(ActionList &Inputs)
+    : JobAction(OffloadBundlingJobClass, Inputs, Inputs.front()->getType()) {}
+
+void OffloadUnbundlingJobAction::anchor() {}
+
+OffloadUnbundlingJobAction::OffloadUnbundlingJobAction(Action *Input)
+    : JobAction(OffloadUnbundlingJobClass, Input, Input->getType()) {}

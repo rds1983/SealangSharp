@@ -15,7 +15,7 @@ This file demonstrates example usage of SealangSharp: [Program.cs] (https://gith
 ## Building from the Source Code
 ### Prerequisites
 * CMake 3.4.3+
-* VS2013+
+* VS2017
 * Python 2.7
 * NuGet(for making a package)
 

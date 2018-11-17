@@ -1,9 +1,7 @@
-// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin -target-feature +sse3 -emit-llvm -o - -Werror | FileCheck %s
+// RUN: %clang_cc1 -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +sse3 -emit-llvm -o - -Wall -Werror | FileCheck %s
 
-// Don't include mm_malloc.h, it's system specific.
-#define __MM_MALLOC_H
 
-#include <x86intrin.h>
+#include <immintrin.h>
 
 // NOTE: This should match the tests in llvm/test/CodeGen/X86/sse3-intrinsics-fast-isel.ll
 

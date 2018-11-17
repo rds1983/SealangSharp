@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 %s
 
+// RUN: %clang_cc1 -verify -fopenmp-simd -ferror-limit 100 %s
+
 int foo() {
 L1:
   foo();
@@ -313,6 +315,8 @@ int captureint() {
 #pragma omp atomic capture
   {c = a; a++;}
 #pragma omp atomic capture
+  {c = a; (a)++;}
+#pragma omp atomic capture
   {++a;c = a;}
 #pragma omp atomic capture
   {c = a;a--;}
@@ -320,6 +324,8 @@ int captureint() {
   {--a;c = a;}
 #pragma omp atomic capture
   {c = a; a += b;}
+#pragma omp atomic capture
+  {c = a; (a) += b;}
 #pragma omp atomic capture
   {a %= b; c = a;}
 #pragma omp atomic capture

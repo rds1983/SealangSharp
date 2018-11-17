@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 %s
+// RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 %s -Wno-openmp-target
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -ferror-limit 100 %s -Wno-openmp-target
 
 void foo() {
 }
@@ -14,8 +16,8 @@ class S2 {
 public:
   S2():a(0) { }
   S2(S2 &s2):a(s2.a) { }
-  static float S2s; // expected-note 4 {{mappable type cannot contain static members}}
-  static const float S2sc; // expected-note 4 {{mappable type cannot contain static members}}
+  static float S2s;
+  static const float S2sc;
 };
 const float S2::S2sc = 0;
 const S2 b;
@@ -80,6 +82,10 @@ T tmain(T argc) {
   foo();
 #pragma omp target parallel map(x: y) // expected-error {{incorrect map type, expected one of 'to', 'from', 'tofrom', 'alloc', 'release', or 'delete'}}
   foo();
+#pragma omp target parallel map(l[-1:]) // expected-error 2 {{array section must be a subset of the original array}}
+  foo();
+#pragma omp target parallel map(l[:-1]) // expected-error 2 {{section length is evaluated to a negative value -1}}
+  foo();
 #pragma omp target parallel map(x)
   foo();
 #pragma omp target parallel map(tofrom: t[:I])
@@ -112,9 +118,9 @@ T tmain(T argc) {
   foo();
 #pragma omp target parallel map(S1) // expected-error {{'S1' does not refer to a value}}
   foo();
-#pragma omp target parallel map(a, b, c, d, f) // expected-error {{incomplete type 'S1' where a complete type is required}} expected-error 2 {{type 'S2' is not mappable to target}}
+#pragma omp target parallel map(a, b, c, d, f) // expected-error {{incomplete type 'S1' where a complete type is required}}
   foo();
-#pragma omp target parallel map(ba) // expected-error 2 {{type 'S2' is not mappable to target}}
+#pragma omp target parallel map(ba)
   foo();
 #pragma omp target parallel map(ca)
   foo();
@@ -143,13 +149,13 @@ T tmain(T argc) {
   foo();
 #pragma omp target parallel map(l) map(l[:5]) // expected-error 2 {{variable already marked as mapped in current construct}} expected-note 2 {{used here}}
   foo();
-#pragma omp target data map(k[:4], j, l[:5]) // expected-note 4 {{used here}}
+#pragma omp target data map(k[:4], j, l[:5]) // expected-note 2 {{used here}}
 {
 #pragma omp target parallel map(k) // expected-error 2 {{pointer cannot be mapped along with a section derived from itself}}
   foo();
 #pragma omp target parallel map(j)
   foo();
-#pragma omp target parallel map(l) // expected-error 2 {{original storage of expression in data environment is shared but data environment do not fully contain mapped expression storage}}
+#pragma omp target parallel map(l)
   foo();
 }
 
@@ -195,6 +201,10 @@ int main(int argc, char **argv) {
   foo();
 #pragma omp target parallel map(x: y) // expected-error {{incorrect map type, expected one of 'to', 'from', 'tofrom', 'alloc', 'release', or 'delete'}}
   foo();
+#pragma omp target parallel map(l[-1:]) // expected-error {{array section must be a subset of the original array}}
+  foo();
+#pragma omp target parallel map(l[:-1]) // expected-error {{section length is evaluated to a negative value -1}}
+  foo();
 #pragma omp target parallel map(x)
   foo();
 #pragma omp target parallel map(to: x)
@@ -213,11 +223,11 @@ int main(int argc, char **argv) {
   foo();
 #pragma omp target parallel map(S1) // expected-error {{'S1' does not refer to a value}}
   foo();
-#pragma omp target parallel map(a, b, c, d, f) // expected-error {{incomplete type 'S1' where a complete type is required}} expected-error 2 {{type 'S2' is not mappable to target}}
+#pragma omp target parallel map(a, b, c, d, f) // expected-error {{incomplete type 'S1' where a complete type is required}}
   foo();
 #pragma omp target parallel map(argv[1])
   foo();
-#pragma omp target parallel map(ba) // expected-error 2 {{type 'S2' is not mappable to target}}
+#pragma omp target parallel map(ba)
   foo();
 #pragma omp target parallel map(ca)
   foo();
@@ -246,13 +256,13 @@ int main(int argc, char **argv) {
   foo();
 #pragma omp target parallel map(l) map(l[:5]) // expected-error 1 {{variable already marked as mapped in current construct}} expected-note 1 {{used here}}
   foo();
-#pragma omp target data map(k[:4], j, l[:5]) // expected-note 2 {{used here}}
+#pragma omp target data map(k[:4], j, l[:5]) // expected-note 1 {{used here}}
 {
 #pragma omp target parallel map(k) // expected-error {{pointer cannot be mapped along with a section derived from itself}}
   foo();
 #pragma omp target parallel map(j)
   foo();
-#pragma omp target parallel map(l) // expected-error {{original storage of expression in data environment is shared but data environment do not fully contain mapped expression storage}}
+#pragma omp target parallel map(l)
   foo();
 }
 

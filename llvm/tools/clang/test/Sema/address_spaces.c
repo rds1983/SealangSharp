@@ -14,13 +14,14 @@ void foo(_AS3 float *a,
 
   int _AS1 _AS2 *Y;   // expected-error {{multiple address spaces specified for type}}
   int *_AS1 _AS2 *Z;  // expected-error {{multiple address spaces specified for type}}
+  int *_AS1 _AS1 *M;  // expected-warning {{multiple identical address spaces specified for type}}
 
   _AS1 int local;     // expected-error {{automatic variable qualified with an address space}}
   _AS1 int array[5];  // expected-error {{automatic variable qualified with an address space}}
   _AS1 int arrarr[5][5]; // expected-error {{automatic variable qualified with an address space}}
 
   __attribute__((address_space(-1))) int *_boundsA; // expected-error {{address space is negative}}
-  __attribute__((address_space(0x7FFFFF))) int *_boundsB;
+  __attribute__((address_space(0x7FFFFF))) int *_boundsB; // expected-error {{address space is larger than the maximum supported}}
   __attribute__((address_space(0x1000000))) int *_boundsC; // expected-error {{address space is larger than the maximum supported}}
   // chosen specifically to overflow 32 bits and come out reasonable
   __attribute__((address_space(4294967500))) int *_boundsD; // expected-error {{address space is larger than the maximum supported}}

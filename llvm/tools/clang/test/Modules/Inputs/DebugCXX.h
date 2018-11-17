@@ -1,4 +1,7 @@
 /* -*- C++ -*- */
+
+#include "dummy.h"
+
 namespace DebugCXX {
   // Records.
   struct Struct {
@@ -54,9 +57,9 @@ namespace DebugCXX {
 }
 
 // Virtual class with a forward declaration.
-class FwdVirtual;
-class FwdVirtual {
-  virtual ~FwdVirtual() {}
+struct Virtual;
+struct Virtual {
+  virtual ~Virtual() {}
 };
 
 struct PureForwardDecl;
@@ -105,3 +108,9 @@ template <> struct Specialized<int> {
 
 template <class T> struct FwdDeclTemplateMember { struct Member; };
 typedef FwdDeclTemplateMember<int>::Member TypedefFwdDeclTemplateMember;
+
+// Base class specialized on the class itself.
+template <typename Derived> class BaseTemplate {};
+template <typename T>
+class WithSpecializedBase : public BaseTemplate<WithSpecializedBase<T>> {};
+typedef WithSpecializedBase<float> SpecializedBase;

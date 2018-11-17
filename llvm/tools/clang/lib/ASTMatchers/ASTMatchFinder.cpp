@@ -126,6 +126,8 @@ public:
       traverse(*Q);
     else if (const TypeLoc *T = DynNode.get<TypeLoc>())
       traverse(*T);
+    else if (const auto *C = DynNode.get<CXXCtorInitializer>())
+      traverse(*C);
     // FIXME: Add other base types after adding tests.
 
     // It's OK to always overwrite the bound nodes, as if there was
@@ -143,17 +145,22 @@ public:
     ScopedIncrement ScopedDepth(&CurrentDepth);
     return (DeclNode == nullptr) || traverse(*DeclNode);
   }
-  bool TraverseStmt(Stmt *StmtNode) {
+  bool TraverseStmt(Stmt *StmtNode, DataRecursionQueue *Queue = nullptr) {
+    // If we need to keep track of the depth, we can't perform data recursion.
+    if (CurrentDepth == 0 || (CurrentDepth <= MaxDepth && MaxDepth < INT_MAX))
+      Queue = nullptr;
+
     ScopedIncrement ScopedDepth(&CurrentDepth);
-    const Stmt *StmtToTraverse = StmtNode;
-    if (Traversal ==
-        ASTMatchFinder::TK_IgnoreImplicitCastsAndParentheses) {
-      const Expr *ExprNode = dyn_cast_or_null<Expr>(StmtNode);
-      if (ExprNode) {
+    Stmt *StmtToTraverse = StmtNode;
+    if (Traversal == ASTMatchFinder::TK_IgnoreImplicitCastsAndParentheses) {
+      if (Expr *ExprNode = dyn_cast_or_null<Expr>(StmtNode))
         StmtToTraverse = ExprNode->IgnoreParenImpCasts();
-      }
     }
-    return (StmtToTraverse == nullptr) || traverse(*StmtToTraverse);
+    if (!StmtToTraverse)
+      return true;
+    if (!match(*StmtToTraverse))
+      return false;
+    return VisitorBase::TraverseStmt(StmtToTraverse, Queue);
   }
   // We assume that the QualType and the contained type are on the same
   // hierarchy level. Thus, we try to match either of them.
@@ -193,6 +200,12 @@ public:
     if (!match(*NNS.getNestedNameSpecifier()))
       return false;
     return traverse(NNS);
+  }
+  bool TraverseConstructorInitializer(CXXCtorInitializer *CtorInit) {
+    if (!CtorInit)
+      return true;
+    ScopedIncrement ScopedDepth(&CurrentDepth);
+    return traverse(*CtorInit);
   }
 
   bool shouldVisitTemplateInstantiations() const { return true; }
@@ -234,6 +247,10 @@ private:
   }
   bool baseTraverse(NestedNameSpecifierLoc NNS) {
     return VisitorBase::TraverseNestedNameSpecifierLoc(NNS);
+  }
+  bool baseTraverse(const CXXCtorInitializer &CtorInit) {
+    return VisitorBase::TraverseConstructorInitializer(
+        const_cast<CXXCtorInitializer *>(&CtorInit));
   }
 
   // Sets 'Matched' to true if 'Matcher' matches 'Node' and:
@@ -366,11 +383,12 @@ public:
   }
 
   bool TraverseDecl(Decl *DeclNode);
-  bool TraverseStmt(Stmt *StmtNode);
+  bool TraverseStmt(Stmt *StmtNode, DataRecursionQueue *Queue = nullptr);
   bool TraverseType(QualType TypeNode);
   bool TraverseTypeLoc(TypeLoc TypeNode);
   bool TraverseNestedNameSpecifier(NestedNameSpecifier *NNS);
   bool TraverseNestedNameSpecifierLoc(NestedNameSpecifierLoc NNS);
+  bool TraverseConstructorInitializer(CXXCtorInitializer *CtorInit);
 
   // Matches children or descendants of 'Node' with 'BaseMatcher'.
   bool memoizedMatchesRecursively(const ast_type_traits::DynTypedNode &Node,
@@ -472,6 +490,8 @@ public:
       match(*N);
     } else if (auto *N = Node.get<TypeLoc>()) {
       match(*N);
+    } else if (auto *N = Node.get<CXXCtorInitializer>()) {
+      match(*N);
     }
   }
 
@@ -491,7 +511,7 @@ private:
     TimeBucketRegion() : Bucket(nullptr) {}
     ~TimeBucketRegion() { setBucket(nullptr); }
 
-    /// \brief Start timing for \p NewBucket.
+    /// Start timing for \p NewBucket.
     ///
     /// If there was a bucket already set, it will finish the timing for that
     /// other bucket.
@@ -514,7 +534,7 @@ private:
     llvm::TimeRecord *Bucket;
   };
 
-  /// \brief Runs all the \p Matchers on \p Node.
+  /// Runs all the \p Matchers on \p Node.
   ///
   /// Used by \c matchDispatch() below.
   template <typename T, typename MC>
@@ -570,7 +590,7 @@ private:
   }
 
   /// @{
-  /// \brief Overloads to pair the different node types to their matchers.
+  /// Overloads to pair the different node types to their matchers.
   void matchDispatch(const Decl *Node) {
     return matchWithFilter(ast_type_traits::DynTypedNode::create(*Node));
   }
@@ -592,6 +612,9 @@ private:
   }
   void matchDispatch(const NestedNameSpecifierLoc *Node) {
     matchWithoutFilter(*Node, Matchers->NestedNameSpecifierLoc);
+  }
+  void matchDispatch(const CXXCtorInitializer *Node) {
+    matchWithoutFilter(*Node, Matchers->CtorInit);
   }
   void matchDispatch(const void *) { /* Do nothing. */ }
   /// @}
@@ -716,7 +739,10 @@ private:
                             BoundNodesTreeBuilder *Builder) {
     const Type *const CanonicalType =
       ActiveASTContext->getCanonicalType(TypeNode);
-    for (const TypedefNameDecl *Alias : TypeAliases.lookup(CanonicalType)) {
+    auto Aliases = TypeAliases.find(CanonicalType);
+    if (Aliases == TypeAliases.end())
+      return false;
+    for (const TypedefNameDecl *Alias : Aliases->second) {
       BoundNodesTreeBuilder Result(*Builder);
       if (Matcher.matches(*Alias, this, &Result)) {
         *Builder = std::move(Result);
@@ -726,14 +752,14 @@ private:
     return false;
   }
 
-  /// \brief Bucket to record map.
+  /// Bucket to record map.
   ///
   /// Used to get the appropriate bucket for each matcher.
   llvm::StringMap<llvm::TimeRecord> TimeByBucket;
 
   const MatchFinder::MatchersByType *Matchers;
 
-  /// \brief Filtered list of matcher indices for each matcher kind.
+  /// Filtered list of matcher indices for each matcher kind.
   ///
   /// \c Decl and \c Stmt toplevel matchers usually apply to a specific node
   /// kind (and derived kinds) so it is a waste to try every matcher on every
@@ -820,12 +846,12 @@ bool MatchASTVisitor::TraverseDecl(Decl *DeclNode) {
   return RecursiveASTVisitor<MatchASTVisitor>::TraverseDecl(DeclNode);
 }
 
-bool MatchASTVisitor::TraverseStmt(Stmt *StmtNode) {
+bool MatchASTVisitor::TraverseStmt(Stmt *StmtNode, DataRecursionQueue *Queue) {
   if (!StmtNode) {
     return true;
   }
   match(*StmtNode);
-  return RecursiveASTVisitor<MatchASTVisitor>::TraverseStmt(StmtNode);
+  return RecursiveASTVisitor<MatchASTVisitor>::TraverseStmt(StmtNode, Queue);
 }
 
 bool MatchASTVisitor::TraverseType(QualType TypeNode) {
@@ -862,6 +888,17 @@ bool MatchASTVisitor::TraverseNestedNameSpecifierLoc(
     match(*NNS.getNestedNameSpecifier());
   return
       RecursiveASTVisitor<MatchASTVisitor>::TraverseNestedNameSpecifierLoc(NNS);
+}
+
+bool MatchASTVisitor::TraverseConstructorInitializer(
+    CXXCtorInitializer *CtorInit) {
+  if (!CtorInit)
+    return true;
+
+  match(*CtorInit);
+
+  return RecursiveASTVisitor<MatchASTVisitor>::TraverseConstructorInitializer(
+      CtorInit);
 }
 
 class MatchASTConsumer : public ASTConsumer {
@@ -934,6 +971,12 @@ void MatchFinder::addMatcher(const TypeLocMatcher &NodeMatch,
   Matchers.AllCallbacks.insert(Action);
 }
 
+void MatchFinder::addMatcher(const CXXCtorInitializerMatcher &NodeMatch,
+                             MatchCallback *Action) {
+  Matchers.CtorInit.emplace_back(NodeMatch, Action);
+  Matchers.AllCallbacks.insert(Action);
+}
+
 bool MatchFinder::addDynamicMatcher(const internal::DynTypedMatcher &NodeMatch,
                                     MatchCallback *Action) {
   if (NodeMatch.canConvertTo<Decl>()) {
@@ -953,6 +996,9 @@ bool MatchFinder::addDynamicMatcher(const internal::DynTypedMatcher &NodeMatch,
     return true;
   } else if (NodeMatch.canConvertTo<TypeLoc>()) {
     addMatcher(NodeMatch.convertTo<TypeLoc>(), Action);
+    return true;
+  } else if (NodeMatch.canConvertTo<CXXCtorInitializer>()) {
+    addMatcher(NodeMatch.convertTo<CXXCtorInitializer>(), Action);
     return true;
   }
   return false;

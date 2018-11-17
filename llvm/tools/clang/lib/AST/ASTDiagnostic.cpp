@@ -20,7 +20,6 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/Type.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -201,7 +200,7 @@ break; \
   return QC.apply(Context, QT);
 }
 
-/// \brief Convert the given type to a string suitable for printing as part of 
+/// Convert the given type to a string suitable for printing as part of
 /// a diagnostic.
 ///
 /// There are four main criteria when determining whether we should have an
@@ -255,7 +254,7 @@ ConvertTypeToDiagnosticString(ASTContext &Context, QualType Ty,
                  // and the desugared comparison string.
     std::string CompareCanS =
         CompareCanTy.getAsString(Context.getPrintingPolicy());
-    
+
     if (CompareCanS == CanS)
       continue;  // No new info from canonical type
 
@@ -328,11 +327,11 @@ void clang::FormatASTNodeDiagnosticArgument(
     void *Cookie,
     ArrayRef<intptr_t> QualTypeVals) {
   ASTContext &Context = *static_cast<ASTContext*>(Cookie);
-  
+
   size_t OldEnd = Output.size();
   llvm::raw_svector_ostream OS(Output);
   bool NeedQuotes = true;
-  
+
   switch (Kind) {
     default: llvm_unreachable("unknown ArgumentKind");
     case DiagnosticsEngine::ak_qualtype_pair: {
@@ -361,11 +360,12 @@ void clang::FormatASTNodeDiagnosticArgument(
       Modifier = StringRef();
       Argument = StringRef();
       // Fall through
+      LLVM_FALLTHROUGH;
     }
     case DiagnosticsEngine::ak_qualtype: {
       assert(Modifier.empty() && Argument.empty() &&
              "Invalid modifier for QualType argument");
-      
+
       QualType Ty(QualType::getFromOpaquePtr(reinterpret_cast<void*>(Val)));
       OS << ConvertTypeToDiagnosticString(Context, Ty, PrevArgs, QualTypeVals);
       NeedQuotes = false;
@@ -937,6 +937,9 @@ class TemplateDiff {
         ++(*this);
       }
 
+      /// Return true if the iterator is non-singular.
+      bool isValid() const { return TST; }
+
       /// isEnd - Returns true if the iterator is one past the end.
       bool isEnd() const {
         assert(TST && "InternalIterator is invalid with a null TST.");
@@ -996,21 +999,21 @@ class TemplateDiff {
       }
     };
 
-    bool UseDesugaredIterator;
     InternalIterator SugaredIterator;
     InternalIterator DesugaredIterator;
 
   public:
     TSTiterator(ASTContext &Context, const TemplateSpecializationType *TST)
-        : UseDesugaredIterator(TST->isSugared() && !TST->isTypeAlias()),
-          SugaredIterator(TST),
+        : SugaredIterator(TST),
           DesugaredIterator(
-              GetTemplateSpecializationType(Context, TST->desugar())) {}
+              (TST->isSugared() && !TST->isTypeAlias())
+                  ? GetTemplateSpecializationType(Context, TST->desugar())
+                  : nullptr) {}
 
     /// &operator++ - Increment the iterator to the next template argument.
     TSTiterator &operator++() {
       ++SugaredIterator;
-      if (UseDesugaredIterator)
+      if (DesugaredIterator.isValid())
         ++DesugaredIterator;
       return *this;
     }
@@ -1033,12 +1036,12 @@ class TemplateDiff {
     /// hasDesugaredTA - Returns true if there is another TemplateArgument
     /// available.
     bool hasDesugaredTA() const {
-      return UseDesugaredIterator && !DesugaredIterator.isEnd();
+      return DesugaredIterator.isValid() && !DesugaredIterator.isEnd();
     }
 
     /// getDesugaredTA - Returns the desugared TemplateArgument.
     reference getDesugaredTA() const {
-      assert(UseDesugaredIterator &&
+      assert(DesugaredIterator.isValid() &&
              "Desugared TemplateArgument should not be used.");
       return *DesugaredIterator;
     }
@@ -2037,7 +2040,7 @@ public:
 /// is successful.
 static bool FormatTemplateTypeDiff(ASTContext &Context, QualType FromType,
                                    QualType ToType, bool PrintTree,
-                                   bool PrintFromType, bool ElideType, 
+                                   bool PrintFromType, bool ElideType,
                                    bool ShowColors, raw_ostream &OS) {
   if (PrintTree)
     PrintFromType = true;

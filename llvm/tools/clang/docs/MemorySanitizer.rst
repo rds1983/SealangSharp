@@ -27,7 +27,7 @@ executable, so make sure to use ``clang`` (not ``ld``) for the final
 link step. When linking shared libraries, the MemorySanitizer run-time
 is not linked, so ``-Wl,-z,defs`` may cause link errors (don't use it
 with MemorySanitizer). To get a reasonable performance add ``-O1`` or
-higher. To get meaninful stack traces in error messages add
+higher. To get meaningful stack traces in error messages add
 ``-fno-omit-frame-pointer``. To get perfect stack traces you may need
 to disable inlining (just use ``-O1``) and tail call elimination
 (``-fno-optimize-sibling-calls``).
@@ -76,14 +76,14 @@ whether MemorySanitizer is enabled. :ref:`\_\_has\_feature
     #  endif
     #endif
 
-``__attribute__((no_sanitize_memory))``
+``__attribute__((no_sanitize("memory")))``
 -----------------------------------------------
 
 Some code should not be checked by MemorySanitizer.  One may use the function
-attribute `no_sanitize_memory` to disable uninitialized checks in a particular
-function.  MemorySanitizer may still instrument such functions to avoid false
-positives.  This attribute may not be supported by other compilers, so we
-suggest to use it together with ``__has_feature(memory_sanitizer)``.
+attribute ``no_sanitize("memory")`` to disable uninitialized checks in a
+particular function.  MemorySanitizer may still instrument such functions to
+avoid false positives.  This attribute may not be supported by other compilers,
+so we suggest to use it together with ``__has_feature(memory_sanitizer)``.
 
 Blacklist
 ---------
@@ -165,6 +165,13 @@ to:
 #. Set environment variable `MSAN_OPTIONS=poison_in_dtor=1` before running
    the program.
 
+Writable/Executable paging detection
+====================================
+
+You can eable writable-executable page detection in MemorySanitizer by
+setting the environment variable `MSAN_OPTIONS=detect_write_exec=1` before
+running the program.
+
 Handling external code
 ======================
 
@@ -185,7 +192,11 @@ self-built instrumented libc++ (as a replacement for libstdc++).
 Supported Platforms
 ===================
 
-MemorySanitizer is supported on Linux x86\_64/MIPS64/AArch64.
+MemorySanitizer is supported on the following OS:
+
+* Linux
+* NetBSD
+* FreeBSD
 
 Limitations
 ===========

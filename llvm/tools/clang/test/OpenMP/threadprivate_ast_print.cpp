@@ -4,8 +4,14 @@
 // RUN: %clang_cc1 -verify -fopenmp -triple x86_64-unknown-linux-gnu -ast-print %s | FileCheck %s
 // RUN: %clang_cc1 -fopenmp -fnoopenmp-use-tls -triple x86_64-unknown-linux-gnu -x c++ -std=c++11 -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -fnoopenmp-use-tls -triple x86_64-unknown-linux-gnu -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -triple x86_64-apple-darwin10.6.0 -ast-print %s | FileCheck %s
+// RUN: %clang_cc1 -fopenmp-simd -triple x86_64-apple-darwin10.6.0 -x c++ -std=c++11 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -triple x86_64-apple-darwin10.6.0 -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print
+// RUN: %clang_cc1 -verify -fopenmp-simd -triple x86_64-unknown-linux-gnu -ast-print %s | FileCheck %s
+// RUN: %clang_cc1 -fopenmp-simd -fnoopenmp-use-tls -triple x86_64-unknown-linux-gnu -x c++ -std=c++11 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -fnoopenmp-use-tls -triple x86_64-unknown-linux-gnu -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print
 // expected-no-diagnostics
-// REQUIRES: x86-registered-target
 
 #ifndef HEADER
 #define HEADER
@@ -19,7 +25,7 @@ struct St1{
  static int b;
 // CHECK: static int b;
 #pragma omp threadprivate(b)
-// CHECK-NEXT: #pragma omp threadprivate(St1::b)
+// CHECK-NEXT: #pragma omp threadprivate(St1::b){{$}}
 } d;
 
 int a, b;
@@ -44,11 +50,11 @@ template <class T> T foo() {
   v = ST<T>::m;
   return v;
 }
-//CHECK: template <class T = int> int foo() {
-//CHECK-NEXT: static int v;
-//CHECK-NEXT: #pragma omp threadprivate(v)
 //CHECK: template <class T> T foo() {
 //CHECK-NEXT: static T v;
+//CHECK-NEXT: #pragma omp threadprivate(v)
+//CHECK: template<> int foo<int>() {
+//CHECK-NEXT: static int v;
 //CHECK-NEXT: #pragma omp threadprivate(v)
 
 namespace ns{

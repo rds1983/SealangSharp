@@ -43,8 +43,20 @@ template <class C, C...> const char *operator"" _suffix();
 // CHECK: const char *PR23120 = operator""_suffix<char32_t, 66615>();
 const char *PR23120 = U"𐐷"_suffix;
 
+// PR28885
+struct A {
+  A();
+};
+struct B : A {
+  using A::A; // CHECK:      using A::A;
+};            // CHECK-NEXT: };
+
 // CHECK: ;
 ;
 // CHECK-NOT: ;
 
+void g(int n) {
+  int buffer[n];     // CHECK: int buffer[n];
+  [&buffer]() {}();  // CHECK: [&buffer]
+}
 

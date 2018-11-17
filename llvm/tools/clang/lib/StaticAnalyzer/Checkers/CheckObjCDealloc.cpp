@@ -34,6 +34,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
@@ -125,7 +126,7 @@ public:
                                      const CallEvent *Call,
                                      PointerEscapeKind Kind) const;
   void checkPreStmt(const ReturnStmt *RS, CheckerContext &C) const;
-  void checkEndFunction(CheckerContext &Ctx) const;
+  void checkEndFunction(const ReturnStmt *RS, CheckerContext &Ctx) const;
 
 private:
   void diagnoseMissingReleases(CheckerContext &C) const;
@@ -173,6 +174,7 @@ private:
   bool classHasSeparateTeardown(const ObjCInterfaceDecl *ID) const;
 
   bool isReleasedByCIFilterDealloc(const ObjCPropertyImplDecl *PropImpl) const;
+  bool isNibLoadedIvarWithoutRetain(const ObjCPropertyImplDecl *PropImpl) const;
 };
 } // End anonymous namespace.
 
@@ -396,7 +398,7 @@ void ObjCDeallocChecker::checkPostObjCMessage(
 /// Check for missing releases even when -dealloc does not call
 /// '[super dealloc]'.
 void ObjCDeallocChecker::checkEndFunction(
-    CheckerContext &C) const {
+    const ReturnStmt *RS, CheckerContext &C) const {
   diagnoseMissingReleases(C);
 }
 
@@ -525,7 +527,7 @@ void ObjCDeallocChecker::diagnoseMissingReleases(CheckerContext &C) const {
     if (SelfRegion != IvarRegion->getSuperRegion())
       continue;
 
-      const ObjCIvarDecl *IvarDecl = IvarRegion->getDecl();
+    const ObjCIvarDecl *IvarDecl = IvarRegion->getDecl();
     // Prevent an inlined call to -dealloc in a super class from warning
     // about the values the subclass's -dealloc should release.
     if (IvarDecl->getContainingInterface() !=
@@ -533,7 +535,7 @@ void ObjCDeallocChecker::diagnoseMissingReleases(CheckerContext &C) const {
       continue;
 
     // Prevents diagnosing multiple times for the same instance variable
-    // at, for example, both a return and at the end of of the function.
+    // at, for example, both a return and at the end of the function.
     NewUnreleased = F.remove(NewUnreleased, IvarSymbol);
 
     if (State->getStateManager()
@@ -643,7 +645,7 @@ ObjCDeallocChecker::findPropertyOnDeallocatingInstance(
 bool ObjCDeallocChecker::diagnoseExtraRelease(SymbolRef ReleasedValue,
                                               const ObjCMethodCall &M,
                                               CheckerContext &C) const {
-  // Try to get the region from which the the released value was loaded.
+  // Try to get the region from which the released value was loaded.
   // Note that, unlike diagnosing for missing releases, here we don't track
   // values that must not be released in the state. This is because even if
   // these values escape, it is still an error under the rules of MRR to
@@ -903,6 +905,9 @@ ReleaseRequirement ObjCDeallocChecker::getDeallocReleaseRequirement(
     if (isReleasedByCIFilterDealloc(PropImpl))
       return ReleaseRequirement::MustNotReleaseDirectly;
 
+    if (isNibLoadedIvarWithoutRetain(PropImpl))
+      return ReleaseRequirement::Unknown;
+
     return ReleaseRequirement::MustRelease;
 
   case ObjCPropertyDecl::Weak:
@@ -1057,6 +1062,32 @@ bool ObjCDeallocChecker::isReleasedByCIFilterDealloc(
   }
 
   return false;
+}
+
+/// Returns whether the ivar backing the property is an IBOutlet that
+/// has its value set by nib loading code without retaining the value.
+///
+/// On macOS, if there is no setter, the nib-loading code sets the ivar
+/// directly, without retaining the value,
+///
+/// On iOS and its derivatives, the nib-loading code will call
+/// -setValue:forKey:, which retains the value before directly setting the ivar.
+bool ObjCDeallocChecker::isNibLoadedIvarWithoutRetain(
+    const ObjCPropertyImplDecl *PropImpl) const {
+  const ObjCIvarDecl *IvarDecl = PropImpl->getPropertyIvarDecl();
+  if (!IvarDecl->hasAttr<IBOutletAttr>())
+    return false;
+
+  const llvm::Triple &Target =
+      IvarDecl->getASTContext().getTargetInfo().getTriple();
+
+  if (!Target.isMacOSX())
+    return false;
+
+  if (PropImpl->getPropertyDecl()->getSetterMethodDecl())
+    return false;
+
+  return true;
 }
 
 void ento::registerObjCDeallocChecker(CheckerManager &Mgr) {

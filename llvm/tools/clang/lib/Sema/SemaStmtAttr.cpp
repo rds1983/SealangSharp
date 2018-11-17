@@ -23,7 +23,7 @@
 using namespace clang;
 using namespace sema;
 
-static Attr *handleFallThroughAttr(Sema &S, Stmt *St, const AttributeList &A,
+static Attr *handleFallThroughAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                                    SourceRange Range) {
   FallThroughAttr Attr(A.getRange(), S.Context,
                        A.getAttributeSpellingListIndex());
@@ -43,17 +43,42 @@ static Attr *handleFallThroughAttr(Sema &S, Stmt *St, const AttributeList &A,
     return nullptr;
   }
 
-  // If this is spelled as the standard C++1z attribute, but not in C++1z, warn
+  // If this is spelled as the standard C++17 attribute, but not in C++17, warn
   // about using it as an extension.
-  if (!S.getLangOpts().CPlusPlus1z && A.isCXX11Attribute() &&
+  if (!S.getLangOpts().CPlusPlus17 && A.isCXX11Attribute() &&
       !A.getScopeName())
-    S.Diag(A.getLoc(), diag::ext_cxx1z_attr) << A.getName();
+    S.Diag(A.getLoc(), diag::ext_cxx17_attr) << A.getName();
 
   FnScope->setHasFallthroughStmt();
   return ::new (S.Context) auto(Attr);
 }
 
-static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const AttributeList &A,
+static Attr *handleSuppressAttr(Sema &S, Stmt *St, const ParsedAttr &A,
+                                SourceRange Range) {
+  if (A.getNumArgs() < 1) {
+    S.Diag(A.getLoc(), diag::err_attribute_too_few_arguments)
+        << A.getName() << 1;
+    return nullptr;
+  }
+
+  std::vector<StringRef> DiagnosticIdentifiers;
+  for (unsigned I = 0, E = A.getNumArgs(); I != E; ++I) {
+    StringRef RuleName;
+
+    if (!S.checkStringLiteralArgumentAttr(A, I, RuleName, nullptr))
+      return nullptr;
+
+    // FIXME: Warn if the rule name is unknown. This is tricky because only
+    // clang-tidy knows about available rules.
+    DiagnosticIdentifiers.push_back(RuleName);
+  }
+
+  return ::new (S.Context) SuppressAttr(
+      A.getRange(), S.Context, DiagnosticIdentifiers.data(),
+      DiagnosticIdentifiers.size(), A.getAttributeSpellingListIndex());
+}
+
+static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                                 SourceRange) {
   IdentifierLoc *PragmaNameLoc = A.getArgAsIdent(0);
   IdentifierLoc *OptionLoc = A.getArgAsIdent(1);
@@ -75,16 +100,15 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const AttributeList &A,
     return nullptr;
   }
 
-  LoopHintAttr::Spelling Spelling;
+  LoopHintAttr::Spelling Spelling =
+      LoopHintAttr::Spelling(A.getAttributeSpellingListIndex());
   LoopHintAttr::OptionType Option;
   LoopHintAttr::LoopHintState State;
   if (PragmaNoUnroll) {
     // #pragma nounroll
-    Spelling = LoopHintAttr::Pragma_nounroll;
     Option = LoopHintAttr::Unroll;
     State = LoopHintAttr::Disable;
   } else if (PragmaUnroll) {
-    Spelling = LoopHintAttr::Pragma_unroll;
     if (ValueExpr) {
       // #pragma unroll N
       Option = LoopHintAttr::UnrollCount;
@@ -96,7 +120,6 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const AttributeList &A,
     }
   } else {
     // #pragma clang loop ...
-    Spelling = LoopHintAttr::Pragma_clang_loop;
     assert(OptionLoc && OptionLoc->Ident &&
            "Attribute must have valid option info.");
     Option = llvm::StringSwitch<LoopHintAttr::OptionType>(
@@ -223,17 +246,13 @@ CheckForIncompatibleAttributes(Sema &S,
   }
 }
 
-static Attr *handleOpenCLUnrollHint(Sema &S, Stmt *St, const AttributeList &A,
+static Attr *handleOpenCLUnrollHint(Sema &S, Stmt *St, const ParsedAttr &A,
                                     SourceRange Range) {
-  // OpenCL v2.0 s6.11.5 - opencl_unroll_hint can have 0 arguments (compiler
+  // Although the feature was introduced only in OpenCL C v2.0 s6.11.5, it's
+  // useful for OpenCL 1.x too and doesn't require HW support.
+  // opencl_unroll_hint can have 0 arguments (compiler
   // determines unrolling factor) or 1 argument (the unroll factor provided
   // by the user).
-
-  if (S.getLangOpts().OpenCLVersion < 200) {
-    S.Diag(A.getLoc(), diag::err_attribute_requires_opencl_version)
-        << A.getName() << "2.0" << 1;
-    return nullptr;
-  }
 
   unsigned NumArgs = A.getNumArgs();
 
@@ -269,20 +288,22 @@ static Attr *handleOpenCLUnrollHint(Sema &S, Stmt *St, const AttributeList &A,
   return OpenCLUnrollHintAttr::CreateImplicit(S.Context, UnrollFactor);
 }
 
-static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
+static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
                                   SourceRange Range) {
   switch (A.getKind()) {
-  case AttributeList::UnknownAttribute:
+  case ParsedAttr::UnknownAttribute:
     S.Diag(A.getLoc(), A.isDeclspecAttribute() ?
            diag::warn_unhandled_ms_attribute_ignored :
            diag::warn_unknown_attribute_ignored) << A.getName();
     return nullptr;
-  case AttributeList::AT_FallThrough:
+  case ParsedAttr::AT_FallThrough:
     return handleFallThroughAttr(S, St, A, Range);
-  case AttributeList::AT_LoopHint:
+  case ParsedAttr::AT_LoopHint:
     return handleLoopHintAttr(S, St, A, Range);
-  case AttributeList::AT_OpenCLUnrollHint:
+  case ParsedAttr::AT_OpenCLUnrollHint:
     return handleOpenCLUnrollHint(S, St, A, Range);
+  case ParsedAttr::AT_Suppress:
+    return handleSuppressAttr(S, St, A, Range);
   default:
     // if we're here, then we parsed a known attribute, but didn't recognize
     // it as a statement attribute => it is declaration attribute
@@ -292,11 +313,12 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
   }
 }
 
-StmtResult Sema::ProcessStmtAttributes(Stmt *S, AttributeList *AttrList,
+StmtResult Sema::ProcessStmtAttributes(Stmt *S,
+                                       const ParsedAttributesView &AttrList,
                                        SourceRange Range) {
   SmallVector<const Attr*, 8> Attrs;
-  for (const AttributeList* l = AttrList; l; l = l->getNext()) {
-    if (Attr *a = ProcessStmtAttribute(*this, S, *l, Range))
+  for (const ParsedAttr &AL : AttrList) {
+    if (Attr *a = ProcessStmtAttribute(*this, S, AL, Range))
       Attrs.push_back(a);
   }
 

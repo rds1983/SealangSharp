@@ -1,6 +1,10 @@
 // RUN: %clang_cc1 -verify -fopenmp -std=c++11 -ast-print %s | FileCheck %s
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -emit-pch -o %t %s
 // RUN: %clang_cc1 -fopenmp -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -std=c++11 -ast-print %s | FileCheck %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp-simd -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
 // expected-no-diagnostics
 
 #ifndef HEADER
@@ -50,7 +54,7 @@ struct SA {
 // CHECK-NEXT: int aa[10];
 // CHECK-NEXT: arr &raa = this->aa;
 // CHECK-NEXT: func(
-// CHECK-NEXT: #pragma omp target is_device_ptr(this->k)
+// CHECK-NEXT: #pragma omp target is_device_ptr(this->k){{$}}
 // CHECK-NEXT: {
 // CHECK-NEXT: }
 // CHECK-NEXT: #pragma omp target is_device_ptr(this->z)
@@ -172,7 +176,7 @@ T tmain(T argc) {
   return 0;
 }
 
-// CHECK: template <typename T = int> int tmain(int argc) {
+// CHECK: template<> int tmain<int>(int argc) {
 // CHECK-NEXT: const int da[5] = {0};
 // CHECK-NEXT: S6 h[10];
 // CHECK-NEXT: auto &rh = h;
@@ -202,7 +206,7 @@ T tmain(T argc) {
 // CHECK-NEXT: }
 // CHECK-NEXT: #pragma omp target is_device_ptr(da)
 
-// CHECK: template <typename T = int *> int *tmain(int *argc) {
+// CHECK: template<> int *tmain<int *>(int *argc) {
 // CHECK-NEXT: int *const da[5] = {0};
 // CHECK-NEXT: S6 h[10];
 // CHECK-NEXT: auto &rh = h;

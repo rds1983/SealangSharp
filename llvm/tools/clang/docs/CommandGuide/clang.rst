@@ -98,14 +98,138 @@ Language Selection and Mode Options
 
  Treat subsequent input files as having type language.
 
-.. option:: -std=<language>
+.. option:: -std=<standard>
 
  Specify the language standard to compile for.
+
+ Supported values for the C language are:
+
+  | ``c89``
+  | ``c90``
+  | ``iso9899:1990``
+
+   ISO C 1990
+
+  | ``iso9899:199409``
+
+   ISO C 1990 with amendment 1
+
+  | ``gnu89``
+  | ``gnu90``
+
+   ISO C 1990 with GNU extensions
+
+  | ``c99``
+  | ``iso9899:1999``
+
+   ISO C 1999
+
+  | ``gnu99``
+
+   ISO C 1999 with GNU extensions
+
+  | ``c11``
+  | ``iso9899:2011``
+
+   ISO C 2011
+
+  | ``gnu11``
+
+   ISO C 2011 with GNU extensions
+
+  | ``c17``
+  | ``iso9899:2017``
+
+   ISO C 2017
+
+  | ``gnu17``
+
+   ISO C 2017 with GNU extensions
+
+ The default C language standard is ``gnu11``, except on PS4, where it is
+ ``gnu99``.
+
+ Supported values for the C++ language are:
+
+  | ``c++98``
+  | ``c++03``
+
+   ISO C++ 1998 with amendments
+
+  | ``gnu++98``
+  | ``gnu++03``
+
+   ISO C++ 1998 with amendments and GNU extensions
+
+  | ``c++11``
+
+   ISO C++ 2011 with amendments
+
+  | ``gnu++11``
+
+    ISO C++ 2011 with amendments and GNU extensions
+
+  | ``c++14``
+
+   ISO C++ 2014 with amendments
+
+  | ``gnu++14``
+
+   ISO C++ 2014 with amendments and GNU extensions
+
+  | ``c++17``
+
+   ISO C++ 2017 with amendments
+
+  | ``gnu++17``
+
+   ISO C++ 2017 with amendments and GNU extensions
+
+  | ``c++2a``
+
+   Working draft for ISO C++ 2020
+
+  | ``gnu++2a``
+
+   Working draft for ISO C++ 2020 with GNU extensions
+
+ The default C++ language standard is ``gnu++14``.
+
+ Supported values for the OpenCL language are:
+
+  | ``cl1.0``
+
+   OpenCL 1.0
+
+  | ``cl1.1``
+
+   OpenCL 1.1
+
+  | ``cl1.2``
+
+   OpenCL 1.2
+
+  | ``cl2.0``
+
+   OpenCL 2.0
+
+ The default OpenCL language standard is ``cl1.0``.
+
+ Supported values for the CUDA language are:
+
+  | ``cuda``
+
+   NVIDIA CUDA(tm)
 
 .. option:: -stdlib=<library>
 
  Specify the C++ standard library to use; supported options are libstdc++ and
- libc++.
+ libc++. If not specified, platform default will be used.
+
+.. option:: -rtlib=<library>
+
+ Specify the compiler runtime library to use; supported options are libgcc and
+ compiler-rt. If not specified, platform default will be used.
 
 .. option:: -ansi
 
@@ -162,16 +286,6 @@ Language Selection and Mode Options
 
  Enable the "Blocks" language feature.
 
-.. option:: -fobjc-gc-only
-
- Indicate that Objective-C code should be compiled in GC-only mode, which only
- works when Objective-C Garbage Collection is enabled.
-
-.. option:: -fobjc-gc
-
- Indicate that Objective-C code should be compiled in hybrid-GC mode, which
- works with both GC and non-GC mode.
-
 .. option:: -fobjc-abi-version=version
 
  Select the Objective-C ABI version to use. Available versions are 1 (legacy
@@ -221,7 +335,7 @@ number of cross compilers, or may only support a native target.
 Code Generation Options
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-.. option:: -O0, -O1, -O2, -O3, -Ofast, -Os, -Oz, -O, -O4
+.. option:: -O0, -O1, -O2, -O3, -Ofast, -Os, -Oz, -Og, -O, -O4
 
   Specify which optimization level to use:
 
@@ -246,6 +360,9 @@ Code Generation Options
 
     :option:`-Oz` Like :option:`-Os` (and thus :option:`-O2`), but reduces code
     size further.
+
+    :option:`-Og` Like :option:`-O1`. In future versions, this option might 
+    disable different optimizations in order to improve debuggability.
 
     :option:`-O` Equivalent to :option:`-O2`.
 
@@ -323,12 +440,18 @@ Code Generation Options
   model can be overridden with the tls_model attribute. The compiler will try
   to choose a more efficient model if possible.
 
-.. option:: -flto, -emit-llvm
+.. option:: -flto, -flto=full, -flto=thin, -emit-llvm
 
   Generate output files in LLVM formats, suitable for link time optimization.
   When used with :option:`-S` this generates LLVM intermediate language
   assembly files, otherwise this generates LLVM bitcode format object files
   (which may be passed to the linker depending on the stage selection options).
+
+  The default for :option:`-flto` is "full", in which the
+  LLVM bitcode is suitable for monolithic Link Time Optimization (LTO), where
+  the linker merges all such modules into a single combined module for
+  optimization. With "thin", :doc:`ThinLTO <../ThinLTO>`
+  compilation is invoked instead.
 
 Driver Options
 ~~~~~~~~~~~~~~
@@ -383,7 +506,8 @@ Driver Options
 
 .. option:: -print-libgcc-file-name
 
-  Print the library path for "libgcc.a".
+  Print the library path for the currently used compiler runtime library
+  ("libgcc.a" or "libclang_rt.builtins.*.a").
 
 .. option:: -print-prog-name=<name>
 
@@ -396,6 +520,12 @@ Driver Options
 .. option:: -save-temps
 
   Save intermediate compilation results.
+
+.. option:: -save-stats, -save-stats=cwd, -save-stats=obj
+
+  Save internal code generation (LLVM) statistics to a file in the current
+  directory (:option:`-save-stats`/"-save-stats=cwd") or the directory
+  of the output file ("-save-state=obj").
 
 .. option:: -integrated-as, -no-integrated-as
 
