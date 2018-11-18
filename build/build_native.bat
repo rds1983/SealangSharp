@@ -1,1 +1,2 @@
-msbuild sealang.sln /p:Configuration=Release
+msbuild llvm\tools\clang\tools\libclang\libclang.vcxproj /p:Configuration=Release
+msbuild sealang/sealang.vcxproj /p:Configuration=Release

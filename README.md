@@ -20,7 +20,7 @@ This file demonstrates example usage of SealangSharp: [Program.cs] (https://gith
 * NuGet(for making a package)
 
 ### Building Native Libraries
-1. Run VS x64 Native Tools Command Prompt
+1. Run "Developer Command Prompt for VS 2017"
 2. Go to "build" folder
 3. Execute run_cmake.bat
 4. Execute build_native.bat

@@ -29,6 +29,9 @@ namespace SealangSharp
 		Shl,
 		Shr,
 
+		// C++20 [expr.spaceship] Three-way comparison operator.
+		ThreeWayComparison,
+
 		// [C99 6.5.8] Relational operators.
 		LT,
 		GT,
